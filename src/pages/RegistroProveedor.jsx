@@ -379,6 +379,8 @@ type="text"
 placeholder="Cargo"
 value={cargo}
 onChange={(e) => setCargo(e.target.value)}
+translate="no"
+lang="es"
 style={{
 padding: "12px",
 borderRadius: "10px",
