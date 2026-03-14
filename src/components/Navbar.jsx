@@ -44,6 +44,7 @@ function Navbar() {
         <Link to="/proveedores" style={linkStyle}>Proveedores</Link>
         <Link to="/requerimientos" style={linkStyle}>Requerimientos</Link>
         <Link to="/cotizaciones" style={linkStyle}>Cotizaciones</Link>
+        <Link to="/oportunidades" style={linkStyle}>Oportunidades</Link>
         <Link to="/registro-proveedor" style={linkStyle}>Registro proveedor</Link>
         <Link to="/revision-proveedores" style={linkStyle}>Revisión proveedores</Link>
       </div>

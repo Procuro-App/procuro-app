@@ -1,14 +1,11 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { proveedores } from "../data/proveedoresData";
+import { useEffect, useState } from "react";
 import { sectores } from "../data/categorias";
 import { paises } from "../data/paises";
 import { provinciasEcuador } from "../data/provinciasEcuador";
 import { ciudadesEcuador } from "../data/ciudadesEcuador";
+import { supabase } from "../lib/supabase";
 
 function Requerimientos() {
-  const navigate = useNavigate();
-
   const [nombreRequerimiento, setNombreRequerimiento] = useState("");
   const [cobertura, setCobertura] = useState("");
   const [pais, setPais] = useState("");
@@ -17,115 +14,111 @@ function Requerimientos() {
   const [sector, setSector] = useState("");
   const [categoria, setCategoria] = useState("");
   const [descripcion, setDescripcion] = useState("");
-  const [requerimientoPublicado, setRequerimientoPublicado] = useState(null);
+  const [guardando, setGuardando] = useState(false);
+  const [cargando, setCargando] = useState(true);
+  const [requerimientos, setRequerimientos] = useState([]);
 
   const categoriasDisponibles = sector ? sectores[sector] || [] : [];
   const ciudadesDisponibles = provincia ? ciudadesEcuador[provincia] || [] : [];
 
-  const publicarRequerimiento = () => {
-    if (
-      !nombreRequerimiento ||
-      !cobertura ||
-      !pais ||
-      !sector ||
-      !categoria
-    ) {
-      alert("Por favor completa los campos obligatorios");
+  useEffect(() => {
+    cargarRequerimientos();
+  }, []);
+
+  const cargarRequerimientos = async () => {
+    setCargando(true);
+
+    const { data, error } = await supabase
+      .from("requerimientos")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error cargando requerimientos:", error);
+      setCargando(false);
       return;
     }
 
-    if (pais === "Ecuador" && !provincia) {
-      alert("Por favor selecciona una provincia");
-      return;
-    }
-
-    if (pais === "Ecuador" && !ciudad) {
-      alert("Por favor selecciona una ciudad");
-      return;
-    }
-
-    setRequerimientoPublicado({
-      nombreRequerimiento,
-      cobertura,
-      pais,
-      provincia,
-      ciudad,
-      sector,
-      categoria,
-      descripcion
-    });
+    setRequerimientos(data || []);
+    setCargando(false);
   };
 
-  const solicitarCotizacion = (proveedor) => {
-    if (!requerimientoPublicado) return;
+  const registrarRequerimiento = async () => {
+    if (!nombreRequerimiento || !sector || !categoria) {
+      alert("Completa los campos obligatorios");
+      return;
+    }
 
-    const nuevaSolicitud = {
-      proveedorId: proveedor.id,
-      proveedorNombre: proveedor.nombre,
-      contacto: proveedor.contacto,
-      email: proveedor.email,
-      telefono: proveedor.telefono,
-      requerimientoNombre: requerimientoPublicado.nombreRequerimiento,
-      sector: requerimientoPublicado.sector,
-      categoria: requerimientoPublicado.categoria,
-      pais: requerimientoPublicado.pais,
-      provincia: requerimientoPublicado.provincia,
-      ciudad: requerimientoPublicado.ciudad,
-      fecha: new Date().toLocaleString()
-    };
+    try {
+      setGuardando(true);
 
-    const solicitudesGuardadas =
-      JSON.parse(localStorage.getItem("solicitudesCotizacion")) || [];
+      const { error } = await supabase.from("requerimientos").insert([
+        {
+          nombre_requerimiento: nombreRequerimiento,
+          cobertura,
+          pais,
+          provincia,
+          ciudad,
+          sector,
+          categoria,
+          descripcion
+        }
+      ]);
 
-    solicitudesGuardadas.push(nuevaSolicitud);
+      if (error) {
+        console.error(error);
+        alert("Error al guardar el requerimiento");
+        return;
+      }
 
-    localStorage.setItem(
-      "solicitudesCotizacion",
-      JSON.stringify(solicitudesGuardadas)
-    );
+      alert("Requerimiento publicado correctamente");
 
-    alert(`Solicitud enviada a ${proveedor.nombre}`);
-    navigate("/cotizaciones");
+      setNombreRequerimiento("");
+      setCobertura("");
+      setPais("");
+      setProvincia("");
+      setCiudad("");
+      setSector("");
+      setCategoria("");
+      setDescripcion("");
+
+      cargarRequerimientos();
+    } catch (err) {
+      console.error(err);
+      alert("Error inesperado");
+    } finally {
+      setGuardando(false);
+    }
   };
 
-  const proveedoresSugeridos = requerimientoPublicado
-    ? proveedores.filter((p) => {
-        const coincideCobertura = p.cobertura === requerimientoPublicado.cobertura;
+  const solicitarCotizacion = async (requerimiento) => {
+    try {
+      const { error } = await supabase.from("cotizaciones").insert([
+        {
+          requerimiento_id: requerimiento.id,
+          requerimiento_nombre: requerimiento.nombre_requerimiento,
+          proveedor_nombre: "Pendiente de asignar",
+          contacto: "",
+          email: "",
+          telefono: "",
+          mensaje: "Solicitud inicial generada desde el requerimiento",
+          valor_referencial: "",
+          estado: "Enviada"
+        }
+      ]);
 
-        const coincidePais =
-          (p.pais || "").toLowerCase() ===
-          (requerimientoPublicado.pais || "").toLowerCase();
+      if (error) {
+        console.error(error);
+        alert("Error al crear la cotización");
+        return;
+      }
 
-        const coincideProvincia =
-          requerimientoPublicado.pais === "Ecuador"
-            ? (p.provincia || "").toLowerCase() ===
-              (requerimientoPublicado.provincia || "").toLowerCase()
-            : true;
-
-        const coincideCiudad =
-          requerimientoPublicado.pais === "Ecuador"
-            ? (p.ciudad || "").toLowerCase() ===
-              (requerimientoPublicado.ciudad || "").toLowerCase()
-            : true;
-
-        const coincideSector =
-          (p.sector || "").toLowerCase() ===
-          (requerimientoPublicado.sector || "").toLowerCase();
-
-        const coincideCategoria =
-          (p.categoria || "").toLowerCase() ===
-          (requerimientoPublicado.categoria || "").toLowerCase();
-
-        return (
-          coincideCobertura &&
-          coincidePais &&
-          coincideProvincia &&
-          coincideCiudad &&
-          coincideSector &&
-          coincideCategoria
-        );
-      })
-    : [];
+      alert("Cotización creada correctamente");
+    } catch (err) {
+      console.error(err);
+      alert("Error inesperado al crear la cotización");
+    }
+  };
 
   return (
     <div
@@ -148,8 +141,7 @@ function Requerimientos() {
           padding: "12px",
           marginBottom: "12px",
           borderRadius: "10px",
-          border: "1px solid #ccc",
-          boxSizing: "border-box"
+          border: "1px solid #ccc"
         }}
       />
 
@@ -163,12 +155,7 @@ function Requerimientos() {
       >
         <select
           value={cobertura}
-          onChange={(e) => {
-            setCobertura(e.target.value);
-            setPais("");
-            setProvincia("");
-            setCiudad("");
-          }}
+          onChange={(e) => setCobertura(e.target.value)}
           style={{
             padding: "12px",
             borderRadius: "10px",
@@ -182,13 +169,7 @@ function Requerimientos() {
 
         <select
           value={pais}
-          onChange={(e) => {
-            setPais(e.target.value);
-            if (e.target.value !== "Ecuador") {
-              setProvincia("");
-              setCiudad("");
-            }
-          }}
+          onChange={(e) => setPais(e.target.value)}
           style={{
             padding: "12px",
             borderRadius: "10px",
@@ -196,31 +177,26 @@ function Requerimientos() {
           }}
         >
           <option value="">País</option>
-          {paises.map((item) => (
-            <option key={item} value={item}>
-              {item}
+          {paises.map((p) => (
+            <option key={p} value={p}>
+              {p}
             </option>
           ))}
         </select>
 
         <select
           value={provincia}
-          onChange={(e) => {
-            setProvincia(e.target.value);
-            setCiudad("");
-          }}
-          disabled={pais !== "Ecuador"}
+          onChange={(e) => setProvincia(e.target.value)}
           style={{
             padding: "12px",
             borderRadius: "10px",
-            border: "1px solid #ccc",
-            backgroundColor: pais === "Ecuador" ? "white" : "#f3f3f3"
+            border: "1px solid #ccc"
           }}
         >
           <option value="">Provincia</option>
-          {provinciasEcuador.map((item) => (
-            <option key={item} value={item}>
-              {item}
+          {provinciasEcuador.map((p) => (
+            <option key={p} value={p}>
+              {p}
             </option>
           ))}
         </select>
@@ -228,18 +204,16 @@ function Requerimientos() {
         <select
           value={ciudad}
           onChange={(e) => setCiudad(e.target.value)}
-          disabled={!provincia}
           style={{
             padding: "12px",
             borderRadius: "10px",
-            border: "1px solid #ccc",
-            backgroundColor: provincia ? "white" : "#f3f3f3"
+            border: "1px solid #ccc"
           }}
         >
           <option value="">Ciudad</option>
-          {ciudadesDisponibles.map((item) => (
-            <option key={item} value={item}>
-              {item}
+          {ciudadesDisponibles.map((c) => (
+            <option key={c} value={c}>
+              {c}
             </option>
           ))}
         </select>
@@ -257,9 +231,9 @@ function Requerimientos() {
           }}
         >
           <option value="">Sector</option>
-          {Object.keys(sectores).map((item) => (
-            <option key={item} value={item}>
-              {item}
+          {Object.keys(sectores).map((s) => (
+            <option key={s} value={s}>
+              {s}
             </option>
           ))}
         </select>
@@ -267,18 +241,16 @@ function Requerimientos() {
         <select
           value={categoria}
           onChange={(e) => setCategoria(e.target.value)}
-          disabled={!sector}
           style={{
             padding: "12px",
             borderRadius: "10px",
-            border: "1px solid #ccc",
-            backgroundColor: sector ? "white" : "#f3f3f3"
+            border: "1px solid #ccc"
           }}
         >
           <option value="">Categoría</option>
-          {categoriasDisponibles.map((item) => (
-            <option key={item} value={item}>
-              {item}
+          {categoriasDisponibles.map((c) => (
+            <option key={c} value={c}>
+              {c}
             </option>
           ))}
         </select>
@@ -294,13 +266,13 @@ function Requerimientos() {
           padding: "12px",
           marginBottom: "12px",
           borderRadius: "10px",
-          border: "1px solid #ccc",
-          boxSizing: "border-box"
+          border: "1px solid #ccc"
         }}
       />
 
       <button
-        onClick={publicarRequerimiento}
+        onClick={registrarRequerimiento}
+        disabled={guardando}
         style={{
           backgroundColor: "#1f3552",
           color: "white",
@@ -310,81 +282,56 @@ function Requerimientos() {
           cursor: "pointer"
         }}
       >
-        Publicar requerimiento
+        {guardando ? "Guardando..." : "Publicar requerimiento"}
       </button>
 
-      {requerimientoPublicado && (
-        <div
-          style={{
-            marginTop: "24px",
-            border: "1px solid #dcdcdc",
-            borderRadius: "12px",
-            padding: "16px"
-          }}
-        >
-          <h3>Requerimiento publicado</h3>
-          <p><strong>Nombre:</strong> {requerimientoPublicado.nombreRequerimiento}</p>
-          <p><strong>Cobertura:</strong> {requerimientoPublicado.cobertura}</p>
-          <p><strong>País:</strong> {requerimientoPublicado.pais}</p>
-          {requerimientoPublicado.provincia ? (
-            <p><strong>Provincia:</strong> {requerimientoPublicado.provincia}</p>
-          ) : null}
-          {requerimientoPublicado.ciudad ? (
-            <p><strong>Ciudad:</strong> {requerimientoPublicado.ciudad}</p>
-          ) : null}
-          <p><strong>Sector:</strong> {requerimientoPublicado.sector}</p>
-          <p><strong>Categoría:</strong> {requerimientoPublicado.categoria}</p>
-          <p><strong>Descripción:</strong> {requerimientoPublicado.descripcion}</p>
-        </div>
-      )}
+      <div style={{ marginTop: "30px" }}>
+        <h3>Requerimientos publicados</h3>
 
-      {requerimientoPublicado && (
-        <div style={{ marginTop: "30px" }}>
-          <h3>Proveedores sugeridos</h3>
+        {cargando ? (
+          <p>Cargando requerimientos...</p>
+        ) : requerimientos.length > 0 ? (
+          requerimientos.map((r) => (
+            <div
+              key={r.id}
+              style={{
+                border: "1px solid #dcdcdc",
+                borderRadius: "10px",
+                padding: "15px",
+                marginBottom: "12px"
+              }}
+            >
+              <h4 style={{ margin: "0 0 8px 0" }}>{r.nombre_requerimiento}</h4>
 
-          {proveedoresSugeridos.length > 0 ? (
-            proveedoresSugeridos.map((p) => (
-              <div
-                key={p.id}
+              <p><strong>Estado:</strong> {r.estado}</p>
+              {r.cobertura ? <p><strong>Cobertura:</strong> {r.cobertura}</p> : null}
+              {r.pais ? <p><strong>País:</strong> {r.pais}</p> : null}
+              {r.provincia ? <p><strong>Provincia:</strong> {r.provincia}</p> : null}
+              {r.ciudad ? <p><strong>Ciudad:</strong> {r.ciudad}</p> : null}
+              <p><strong>Sector:</strong> {r.sector}</p>
+              <p><strong>Categoría:</strong> {r.categoria}</p>
+              {r.descripcion ? <p><strong>Descripción:</strong> {r.descripcion}</p> : null}
+
+              <button
+                onClick={() => solicitarCotizacion(r)}
                 style={{
-                  border: "1px solid #dcdcdc",
-                  borderRadius: "10px",
-                  padding: "15px",
-                  marginBottom: "12px"
+                  backgroundColor: "#1f3552",
+                  color: "white",
+                  border: "none",
+                  padding: "10px 14px",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  marginTop: "10px"
                 }}
               >
-                <h4 style={{ margin: "0 0 8px 0" }}>{p.nombre}</h4>
-                <p><strong>Cobertura:</strong> {p.cobertura}</p>
-                <p><strong>País:</strong> {p.pais}</p>
-                {p.provincia ? <p><strong>Provincia:</strong> {p.provincia}</p> : null}
-                <p><strong>Ciudad:</strong> {p.ciudad}</p>
-                <p><strong>Sector:</strong> {p.sector}</p>
-                <p><strong>Categoría:</strong> {p.categoria}</p>
-                <p><strong>Contacto:</strong> {p.contacto}</p>
-                <p><strong>Email:</strong> {p.email}</p>
-                <p><strong>Teléfono:</strong> {p.telefono}</p>
-
-                <button
-                  onClick={() => solicitarCotizacion(p)}
-                  style={{
-                    marginTop: "10px",
-                    backgroundColor: "#1f3552",
-                    color: "white",
-                    border: "none",
-                    padding: "10px 14px",
-                    borderRadius: "8px",
-                    cursor: "pointer"
-                  }}
-                >
-                  Solicitar cotización
-                </button>
-              </div>
-            ))
-          ) : (
-            <p>No se encontraron proveedores compatibles con ese requerimiento.</p>
-          )}
-        </div>
-      )}
+                Solicitar cotización
+              </button>
+            </div>
+          ))
+        ) : (
+          <p>No hay requerimientos publicados todavía.</p>
+        )}
+      </div>
     </div>
   );
 }

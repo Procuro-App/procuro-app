@@ -1,48 +1,70 @@
 import { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
 
 function RevisionProveedores() {
   const [proveedoresPendientes, setProveedoresPendientes] = useState([]);
+  const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
-    const dataGuardada = localStorage.getItem("proveedoresPendientes");
-    if (dataGuardada) {
-      setProveedoresPendientes(JSON.parse(dataGuardada));
-    }
+    cargarPendientes();
   }, []);
 
-  const limpiarPendientes = () => {
-    localStorage.removeItem("proveedoresPendientes");
-    setProveedoresPendientes([]);
+  const cargarPendientes = async () => {
+    setCargando(true);
+
+    const { data, error } = await supabase
+      .from("proveedores")
+      .select("*")
+      .eq("estado", "Pendiente")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error cargando proveedores pendientes:", error);
+      setCargando(false);
+      return;
+    }
+
+    setProveedoresPendientes(data || []);
+    setCargando(false);
   };
 
-  const aprobarProveedor = (proveedor) => {
-    const proveedoresAprobados =
-      JSON.parse(localStorage.getItem("proveedoresAprobados")) || [];
+  const aprobarProveedor = async (proveedorId) => {
+    const { error } = await supabase
+      .from("proveedores")
+      .update({
+        estado: "Aprobado",
+        verificado: true
+      })
+      .eq("id", proveedorId);
 
-    const proveedorAprobado = {
-      ...proveedor,
-      verificado: true,
-      estado: "Aprobado"
-    };
+    if (error) {
+      console.error("Error aprobando proveedor:", error);
+      alert("Hubo un problema al aprobar el proveedor");
+      return;
+    }
 
-    proveedoresAprobados.push(proveedorAprobado);
+    alert("Proveedor aprobado correctamente");
+    cargarPendientes();
+  };
 
-    localStorage.setItem(
-      "proveedoresAprobados",
-      JSON.stringify(proveedoresAprobados)
-    );
+  const limpiarPendientes = async () => {
+    const ids = proveedoresPendientes.map((p) => p.id);
 
-    const pendientesActualizados = proveedoresPendientes.filter(
-      (p) => p.id !== proveedor.id
-    );
+    if (ids.length === 0) return;
 
-    localStorage.setItem(
-      "proveedoresPendientes",
-      JSON.stringify(pendientesActualizados)
-    );
+    const { error } = await supabase
+      .from("proveedores")
+      .delete()
+      .in("id", ids);
 
-    setProveedoresPendientes(pendientesActualizados);
-    alert(`Proveedor aprobado: ${proveedor.nombre}`);
+    if (error) {
+      console.error("Error limpiando pendientes:", error);
+      alert("Hubo un problema al limpiar la bandeja");
+      return;
+    }
+
+    alert("Bandeja limpiada");
+    cargarPendientes();
   };
 
   return (
@@ -56,7 +78,9 @@ function RevisionProveedores() {
     >
       <h2>Revisión de proveedores</h2>
 
-      {proveedoresPendientes.length > 0 ? (
+      {cargando ? (
+        <p>Cargando proveedores pendientes...</p>
+      ) : proveedoresPendientes.length > 0 ? (
         <>
           <p style={{ marginBottom: "20px", color: "#555" }}>
             Proveedores pendientes: <strong>{proveedoresPendientes.length}</strong>
@@ -85,17 +109,17 @@ function RevisionProveedores() {
               <p><strong>Cargo:</strong> {p.cargo}</p>
               <p><strong>Correo electrónico:</strong> {p.email}</p>
               <p><strong>Teléfono principal:</strong> {p.telefono}</p>
-              {p.telefonoSecundario ? (
-                <p><strong>Teléfono secundario:</strong> {p.telefonoSecundario}</p>
+              {p.telefono_secundario ? (
+                <p><strong>Teléfono secundario:</strong> {p.telefono_secundario}</p>
               ) : null}
               {p.brochure ? <p><strong>Brochure:</strong> {p.brochure}</p> : null}
               {p.presentacion ? <p><strong>Presentación:</strong> {p.presentacion}</p> : null}
               {p.certificaciones ? <p><strong>Certificaciones:</strong> {p.certificaciones}</p> : null}
               {p.catalogo ? <p><strong>Catálogo:</strong> {p.catalogo}</p> : null}
-              <p><strong>Fecha de registro:</strong> {p.fechaRegistro}</p>
+              <p><strong>Fecha de registro:</strong> {p.fecha_registro}</p>
 
               <button
-                onClick={() => aprobarProveedor(p)}
+                onClick={() => aprobarProveedor(p.id)}
                 style={{
                   backgroundColor: "#1f3552",
                   color: "white",

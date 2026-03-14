@@ -1,18 +1,30 @@
 import { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
 
 function Cotizaciones() {
-  const [solicitudes, setSolicitudes] = useState([]);
+  const [cotizaciones, setCotizaciones] = useState([]);
+  const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
-    const dataGuardada = localStorage.getItem("solicitudesCotizacion");
-    if (dataGuardada) {
-      setSolicitudes(JSON.parse(dataGuardada));
-    }
+    cargarCotizaciones();
   }, []);
 
-  const limpiarSolicitudes = () => {
-    localStorage.removeItem("solicitudesCotizacion");
-    setSolicitudes([]);
+  const cargarCotizaciones = async () => {
+    setCargando(true);
+
+    const { data, error } = await supabase
+      .from("cotizaciones")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error cargando cotizaciones:", error);
+      setCargando(false);
+      return;
+    }
+
+    setCotizaciones(data || []);
+    setCargando(false);
   };
 
   return (
@@ -24,17 +36,19 @@ function Cotizaciones() {
         boxShadow: "0 4px 14px rgba(0,0,0,0.08)"
       }}
     >
-      <h2>Solicitudes de cotización</h2>
+      <h2>Cotizaciones</h2>
 
-      {solicitudes.length > 0 ? (
+      {cargando ? (
+        <p>Cargando cotizaciones...</p>
+      ) : cotizaciones.length > 0 ? (
         <>
           <p style={{ marginBottom: "20px", color: "#555" }}>
-            Total de solicitudes enviadas: <strong>{solicitudes.length}</strong>
+            Total de cotizaciones: <strong>{cotizaciones.length}</strong>
           </p>
 
-          {solicitudes.map((s, index) => (
+          {cotizaciones.map((c) => (
             <div
-              key={index}
+              key={c.id}
               style={{
                 border: "1px solid #dcdcdc",
                 borderRadius: "10px",
@@ -42,36 +56,50 @@ function Cotizaciones() {
                 marginBottom: "12px"
               }}
             >
-              <h4 style={{ margin: "0 0 8px 0" }}>{s.proveedorNombre}</h4>
-              <p><strong>Requerimiento:</strong> {s.requerimientoNombre}</p>
-              <p><strong>Sector:</strong> {s.sector}</p>
-              <p><strong>Categoría:</strong> {s.categoria}</p>
-              <p><strong>País:</strong> {s.pais}</p>
-              {s.provincia ? <p><strong>Provincia:</strong> {s.provincia}</p> : null}
-              {s.ciudad ? <p><strong>Ciudad:</strong> {s.ciudad}</p> : null}
-              <p><strong>Contacto proveedor:</strong> {s.contacto}</p>
-              <p><strong>Email proveedor:</strong> {s.email}</p>
-              <p><strong>Teléfono proveedor:</strong> {s.telefono}</p>
-              <p><strong>Fecha de solicitud:</strong> {s.fecha}</p>
+              <h4 style={{ margin: "0 0 8px 0" }}>
+                {c.requerimiento_nombre || "Sin requerimiento"}
+              </h4>
+
+              <p><strong>Estado:</strong> {c.estado}</p>
+              {c.proveedor_nombre ? (
+                <p><strong>Proveedor:</strong> {c.proveedor_nombre}</p>
+              ) : null}
+              {c.contacto ? <p><strong>Contacto:</strong> {c.contacto}</p> : null}
+              {c.email ? <p><strong>Email:</strong> {c.email}</p> : null}
+              {c.telefono ? <p><strong>Teléfono:</strong> {c.telefono}</p> : null}
+              {c.valor_referencial ? (
+                <p><strong>Valor referencial:</strong> {c.valor_referencial}</p>
+              ) : null}
+              {c.mensaje ? <p><strong>Mensaje:</strong> {c.mensaje}</p> : null}
+
+              {c.archivo_url ? (
+                <div style={{ marginTop: "10px" }}>
+                  <a
+                    href={c.archivo_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      display: "inline-block",
+                      backgroundColor: "#1f3552",
+                      color: "white",
+                      textDecoration: "none",
+                      padding: "10px 14px",
+                      borderRadius: "8px"
+                    }}
+                  >
+                    Ver archivo adjunto
+                  </a>
+                </div>
+              ) : (
+                <p style={{ color: "#777" }}>
+                  <strong>Archivo:</strong> No adjunto
+                </p>
+              )}
             </div>
           ))}
-
-          <button
-            onClick={limpiarSolicitudes}
-            style={{
-              backgroundColor: "#8b1e1e",
-              color: "white",
-              border: "none",
-              padding: "12px 18px",
-              borderRadius: "10px",
-              cursor: "pointer"
-            }}
-          >
-            Limpiar solicitudes
-          </button>
         </>
       ) : (
-        <p>No hay solicitudes de cotización registradas todavía.</p>
+        <p>No hay cotizaciones registradas todavía.</p>
       )}
     </div>
   );
