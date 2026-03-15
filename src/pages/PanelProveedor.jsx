@@ -1,28 +1,44 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { proveedores as proveedoresBase } from "../data/proveedoresData";
 import { Link } from "react-router-dom";
 
 function PanelProveedor() {
-const [proveedoresSupabase, setProveedoresSupabase] = useState([]);
-const [proveedorSeleccionado, setProveedorSeleccionado] = useState("");
+const [usuario, setUsuario] = useState(null);
+const [proveedorActual, setProveedorActual] = useState(null);
 const [requerimientos, setRequerimientos] = useState([]);
 const [cotizaciones, setCotizaciones] = useState([]);
 const [cargando, setCargando] = useState(true);
 
 useEffect(() => {
-cargarPanel();
+cargarPanelPrivado();
 }, []);
 
-const cargarPanel = async () => {
+const cargarPanelPrivado = async () => {
 try {
 setCargando(true);
 
-const { data: proveedoresData, error: proveedoresError } = await supabase
+const { data: userData } = await supabase.auth.getUser();
+const user = userData?.user || null;
+setUsuario(user);
+
+if (!user?.email) {
+setCargando(false);
+return;
+}
+
+const { data: proveedorData, error: proveedorError } = await supabase
 .from("proveedores")
 .select("*")
-.eq("estado", "Aprobado")
-.order("created_at", { ascending: false });
+.eq("email", user.email)
+.single();
+
+if (proveedorError) {
+console.error("Error cargando proveedor actual:", proveedorError);
+setCargando(false);
+return;
+}
+
+setProveedorActual(proveedorData);
 
 const { data: requerimientosData, error: requerimientosError } = await supabase
 .from("requerimientos")
@@ -33,11 +49,8 @@ const { data: requerimientosData, error: requerimientosError } = await supabase
 const { data: cotizacionesData, error: cotizacionesError } = await supabase
 .from("cotizaciones")
 .select("*")
+.eq("proveedor_nombre", proveedorData.nombre)
 .order("created_at", { ascending: false });
-
-if (proveedoresError) {
-console.error("Error cargando proveedores:", proveedoresError);
-}
 
 if (requerimientosError) {
 console.error("Error cargando requerimientos:", requerimientosError);
@@ -47,7 +60,6 @@ if (cotizacionesError) {
 console.error("Error cargando cotizaciones:", cotizacionesError);
 }
 
-setProveedoresSupabase(proveedoresData || []);
 setRequerimientos(requerimientosData || []);
 setCotizaciones(cotizacionesData || []);
 } catch (error) {
@@ -56,18 +68,6 @@ console.error("Error general cargando panel:", error);
 setCargando(false);
 }
 };
-
-const todosLosProveedores = useMemo(() => {
-return [...proveedoresBase, ...proveedoresSupabase];
-}, [proveedoresSupabase]);
-
-const proveedorActual = useMemo(() => {
-if (!proveedorSeleccionado) return null;
-
-return todosLosProveedores.find(
-(p) => p.nombre === proveedorSeleccionado
-) || null;
-}, [proveedorSeleccionado, todosLosProveedores]);
 
 const oportunidadesRelacionadas = useMemo(() => {
 if (!proveedorActual) return [];
@@ -89,22 +89,7 @@ const solicitudesDirigidas = useMemo(() => {
 if (!proveedorActual) return [];
 
 return cotizaciones.filter((c) => {
-return (
-(c.proveedor_nombre || "").toLowerCase() ===
-(proveedorActual.nombre || "").toLowerCase() &&
-(c.estado || "").toLowerCase() === "solicitada"
-);
-});
-}, [proveedorActual, cotizaciones]);
-
-const cotizacionesProveedor = useMemo(() => {
-if (!proveedorActual) return [];
-
-return cotizaciones.filter((c) => {
-return (
-(c.proveedor_nombre || "").toLowerCase() ===
-(proveedorActual.nombre || "").toLowerCase()
-);
+return (c.estado || "").toLowerCase() === "solicitada";
 });
 }, [proveedorActual, cotizaciones]);
 
@@ -123,47 +108,54 @@ return (
 );
 }
 
+if (!usuario) {
+return (
+<div style={cardStyle}>
+<h2>Acceso restringido</h2>
+<p>Primero debes iniciar sesión como proveedor para ver tu panel privado.</p>
+
+<Link
+to="/acceso-proveedor"
+style={{
+display: "inline-block",
+marginTop: "12px",
+backgroundColor: "#1f3552",
+color: "white",
+textDecoration: "none",
+padding: "10px 14px",
+borderRadius: "8px",
+fontWeight: "bold"
+}}
+>
+Ir a acceso proveedor
+</Link>
+</div>
+);
+}
+
+if (!proveedorActual) {
+return (
+<div style={cardStyle}>
+<h2>Proveedor no vinculado</h2>
+<p>
+Tu correo inició sesión, pero todavía no encontramos un proveedor aprobado con ese email.
+</p>
+<p>
+Para esta primera versión, el correo del login debe coincidir con el correo del proveedor registrado en PROCURO.
+</p>
+</div>
+);
+}
+
 return (
 <div>
 <div style={{ ...cardStyle, marginBottom: "20px" }}>
 <h2>Panel del proveedor</h2>
+<p><strong>Proveedor activo:</strong> {proveedorActual.nombre}</p>
+<p><strong>Email:</strong> {usuario.email}</p>
 <p>
-Selecciona un proveedor para ver oportunidades relacionadas,
-solicitudes directas y cotizaciones enviadas.
+Este panel ya muestra solo la información del proveedor autenticado.
 </p>
-
-<select
-value={proveedorSeleccionado}
-onChange={(e) => setProveedorSeleccionado(e.target.value)}
-style={{
-width: "100%",
-padding: "12px",
-borderRadius: "10px",
-border: "1px solid #ccc",
-marginTop: "12px"
-}}
->
-<option value="">Selecciona un proveedor</option>
-{todosLosProveedores.map((p, index) => (
-<option key={p.id || `${p.nombre}-${index}`} value={p.nombre}>
-{p.nombre}
-</option>
-))}
-</select>
-</div>
-
-{!proveedorActual ? (
-<div style={cardStyle}>
-<p>Selecciona un proveedor para visualizar su panel inteligente.</p>
-</div>
-) : (
-<>
-<div style={{ ...cardStyle, marginBottom: "20px" }}>
-<h3>{proveedorActual.nombre}</h3>
-<p><strong>Tipo:</strong> {proveedorActual.tipo_persona || "No especificado"}</p>
-<p><strong>Sector:</strong> {proveedorActual.sector || "No especificado"}</p>
-<p><strong>Categoría:</strong> {proveedorActual.categoria || "No especificada"}</p>
-<p><strong>Email:</strong> {proveedorActual.email || "No especificado"}</p>
 </div>
 
 <div
@@ -191,11 +183,11 @@ marginBottom: "20px"
 </div>
 
 <div style={cardStyle}>
-<h3>Cotizaciones del proveedor</h3>
+<h3>Mis cotizaciones</h3>
 <p style={{ fontSize: "32px", fontWeight: "bold", margin: "10px 0" }}>
-{cotizacionesProveedor.length}
+{cotizaciones.length}
 </p>
-<p>Registros asociados al proveedor seleccionado</p>
+<p>Registros asociados a este proveedor</p>
 </div>
 </div>
 
@@ -278,10 +270,10 @@ Valor referencial: {c.valor_referencial}
 </div>
 
 <div style={cardStyle}>
-<h3>Últimas cotizaciones del proveedor</h3>
+<h3>Mis últimas cotizaciones</h3>
 
-{cotizacionesProveedor.length > 0 ? (
-cotizacionesProveedor.slice(0, 5).map((c) => (
+{cotizaciones.length > 0 ? (
+cotizaciones.slice(0, 5).map((c) => (
 <div
 key={c.id}
 style={{
@@ -313,8 +305,6 @@ Ver archivo adjunto
 <p>No hay cotizaciones registradas para este proveedor.</p>
 )}
 </div>
-</>
-)}
 </div>
 );
 }

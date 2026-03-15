@@ -50,6 +50,80 @@ return cotizaciones.filter(
 );
 }, [cotizaciones, requerimientoSeleccionado]);
 
+const convertirANumero = (valor) => {
+if (valor === null || valor === undefined || valor === "") return null;
+
+const limpio = String(valor).replace(/[^\d.,]/g, "").replace(/,/g, "");
+const numero = Number(limpio);
+
+return Number.isNaN(numero) ? null : numero;
+};
+
+const cotizacionesConAnalisis = useMemo(() => {
+const conValor = cotizacionesFiltradas.map((c) => ({
+...c,
+valorNumerico: convertirANumero(c.valor_referencial)
+}));
+
+const valoresValidos = conValor
+.map((c) => c.valorNumerico)
+.filter((v) => v !== null)
+.sort((a, b) => a - b);
+
+if (valoresValidos.length === 0) return conValor;
+
+const minimo = valoresValidos[0];
+const maximo = valoresValidos[valoresValidos.length - 1];
+
+return conValor.map((c) => {
+if (c.valorNumerico === null) {
+return { ...c, nivelPrecio: "sin-dato" };
+}
+
+if (c.valorNumerico === minimo) {
+return { ...c, nivelPrecio: "mejor" };
+}
+
+if (c.valorNumerico === maximo && maximo !== minimo) {
+return { ...c, nivelPrecio: "alto" };
+}
+
+return { ...c, nivelPrecio: "medio" };
+});
+}, [cotizacionesFiltradas]);
+
+const obtenerEstiloNivel = (nivel) => {
+if (nivel === "mejor") {
+return {
+backgroundColor: "#d1fae5",
+color: "#065f46",
+texto: "🟢 Mejor precio"
+};
+}
+
+if (nivel === "medio") {
+return {
+backgroundColor: "#fef3c7",
+color: "#92400e",
+texto: "🟡 Precio intermedio"
+};
+}
+
+if (nivel === "alto") {
+return {
+backgroundColor: "#fee2e2",
+color: "#991b1b",
+texto: "🔴 Precio más alto"
+};
+}
+
+return {
+backgroundColor: "#e5e7eb",
+color: "#374151",
+texto: "Sin dato comparable"
+};
+};
+
 const cardStyle = {
 backgroundColor: "white",
 borderRadius: "16px",
@@ -101,15 +175,17 @@ marginTop: "12px"
 <>
 <div style={{ ...cardStyle, marginBottom: "20px" }}>
 <p style={{ marginBottom: "0", color: "#555" }}>
-Cotizaciones encontradas: <strong>{cotizacionesFiltradas.length}</strong>
+Cotizaciones encontradas: <strong>{cotizacionesConAnalisis.length}</strong>
 </p>
 </div>
 
-{/* Vista móvil: tarjetas */}
 <div className="comparador-mobile">
 <div style={cardStyle}>
-{cotizacionesFiltradas.length > 0 ? (
-cotizacionesFiltradas.map((c) => (
+{cotizacionesConAnalisis.length > 0 ? (
+cotizacionesConAnalisis.map((c) => {
+const nivel = obtenerEstiloNivel(c.nivelPrecio);
+
+return (
 <div
 key={c.id}
 style={{
@@ -119,6 +195,21 @@ padding: "15px",
 marginBottom: "12px"
 }}
 >
+<div
+style={{
+display: "inline-block",
+marginBottom: "10px",
+backgroundColor: nivel.backgroundColor,
+color: nivel.color,
+padding: "6px 10px",
+borderRadius: "999px",
+fontSize: "12px",
+fontWeight: "bold"
+}}
+>
+{nivel.texto}
+</div>
+
 <h3 style={{ marginTop: 0 }}>
 {c.proveedor_nombre || "Proveedor no especificado"}
 </h3>
@@ -146,28 +237,29 @@ Ver archivo adjunto
 <p><strong>Archivo:</strong> No adjunto</p>
 )}
 </div>
-))
+);
+})
 ) : (
 <p>No hay cotizaciones para este requerimiento.</p>
 )}
 </div>
 </div>
 
-{/* Vista escritorio: tabla */}
 <div className="comparador-desktop">
 <div style={cardStyle}>
-{cotizacionesFiltradas.length > 0 ? (
+{cotizacionesConAnalisis.length > 0 ? (
 <div style={{ overflowX: "auto" }}>
 <table
 style={{
 width: "100%",
 borderCollapse: "collapse",
-minWidth: "900px"
+minWidth: "980px"
 }}
 >
 <thead>
 <tr style={{ backgroundColor: "#f3f4f6" }}>
 <th style={thStyle}>Proveedor</th>
+<th style={thStyle}>Semáforo</th>
 <th style={thStyle}>Estado</th>
 <th style={thStyle}>Valor referencial</th>
 <th style={thStyle}>Contacto</th>
@@ -178,9 +270,27 @@ minWidth: "900px"
 </tr>
 </thead>
 <tbody>
-{cotizacionesFiltradas.map((c) => (
+{cotizacionesConAnalisis.map((c) => {
+const nivel = obtenerEstiloNivel(c.nivelPrecio);
+
+return (
 <tr key={c.id}>
 <td style={tdStyle}>{c.proveedor_nombre || "No especificado"}</td>
+<td style={tdStyle}>
+<span
+style={{
+backgroundColor: nivel.backgroundColor,
+color: nivel.color,
+padding: "6px 10px",
+borderRadius: "999px",
+fontSize: "12px",
+fontWeight: "bold",
+display: "inline-block"
+}}
+>
+{nivel.texto}
+</span>
+</td>
 <td style={tdStyle}>{c.estado || "No especificado"}</td>
 <td style={tdStyle}>{c.valor_referencial || "No especificado"}</td>
 <td style={tdStyle}>{c.contacto || "No especificado"}</td>
@@ -197,7 +307,8 @@ Ver archivo
 )}
 </td>
 </tr>
-))}
+);
+})}
 </tbody>
 </table>
 </div>
