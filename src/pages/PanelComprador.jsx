@@ -1,0 +1,221 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { supabase } from "../lib/supabase";
+
+function PanelComprador() {
+const [requerimientos, setRequerimientos] = useState([]);
+const [cotizaciones, setCotizaciones] = useState([]);
+const [cargando, setCargando] = useState(true);
+
+useEffect(() => {
+cargarPanel();
+}, []);
+
+const cargarPanel = async () => {
+try {
+setCargando(true);
+
+const { data: requerimientosData, error: requerimientosError } = await supabase
+.from("requerimientos")
+.select("*")
+.order("created_at", { ascending: false });
+
+const { data: cotizacionesData, error: cotizacionesError } = await supabase
+.from("cotizaciones")
+.select("*")
+.order("created_at", { ascending: false });
+
+if (requerimientosError) {
+console.error("Error cargando requerimientos:", requerimientosError);
+}
+
+if (cotizacionesError) {
+console.error("Error cargando cotizaciones:", cotizacionesError);
+}
+
+setRequerimientos(requerimientosData || []);
+setCotizaciones(cotizacionesData || []);
+} catch (error) {
+console.error("Error general cargando panel comprador:", error);
+} finally {
+setCargando(false);
+}
+};
+
+const cardStyle = {
+backgroundColor: "white",
+borderRadius: "16px",
+padding: "20px",
+boxShadow: "0 4px 14px rgba(0,0,0,0.08)"
+};
+
+if (cargando) {
+return (
+<div style={cardStyle}>
+<p>Cargando dashboard del comprador...</p>
+</div>
+);
+}
+
+return (
+<div>
+<div style={{ ...cardStyle, marginBottom: "20px" }}>
+<h2>Dashboard comprador</h2>
+<p>
+Desde aquí podrás revisar tus requerimientos, las cotizaciones recibidas
+y acceder rápidamente a los módulos principales de compra.
+</p>
+
+<div
+style={{
+display: "flex",
+gap: "10px",
+flexWrap: "wrap",
+marginTop: "14px"
+}}
+>
+<Link
+to="/requerimientos"
+style={{
+display: "inline-block",
+backgroundColor: "#1f3552",
+color: "white",
+textDecoration: "none",
+padding: "10px 14px",
+borderRadius: "8px",
+fontWeight: "bold"
+}}
+>
+Publicar requerimiento
+</Link>
+
+<Link
+to="/proveedores"
+style={{
+display: "inline-block",
+backgroundColor: "#e5e7eb",
+color: "#111827",
+textDecoration: "none",
+padding: "10px 14px",
+borderRadius: "8px",
+fontWeight: "bold"
+}}
+>
+Buscar proveedores
+</Link>
+
+<Link
+to="/cotizaciones"
+style={{
+display: "inline-block",
+backgroundColor: "#dbeafe",
+color: "#1d4ed8",
+textDecoration: "none",
+padding: "10px 14px",
+borderRadius: "8px",
+fontWeight: "bold"
+}}
+>
+Ver cotizaciones
+</Link>
+</div>
+</div>
+
+<div
+style={{
+display: "grid",
+gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+gap: "16px",
+marginBottom: "20px"
+}}
+>
+<div style={cardStyle}>
+<h3>Requerimientos</h3>
+<p style={{ fontSize: "32px", fontWeight: "bold", margin: "10px 0" }}>
+{requerimientos.length}
+</p>
+<p>Registros publicados en la plataforma</p>
+</div>
+
+<div style={cardStyle}>
+<h3>Cotizaciones recibidas</h3>
+<p style={{ fontSize: "32px", fontWeight: "bold", margin: "10px 0" }}>
+{cotizaciones.length}
+</p>
+<p>Respuestas generadas por proveedores</p>
+</div>
+
+<div style={cardStyle}>
+<h3>Requerimientos abiertos</h3>
+<p style={{ fontSize: "32px", fontWeight: "bold", margin: "10px 0" }}>
+{requerimientos.filter((r) => (r.estado || "").toLowerCase() === "abierto").length}
+</p>
+<p>Oportunidades activas publicadas</p>
+</div>
+</div>
+
+<div style={{ ...cardStyle, marginBottom: "20px" }}>
+<h3>Últimos requerimientos</h3>
+
+{requerimientos.length > 0 ? (
+requerimientos.slice(0, 5).map((r) => (
+<div
+key={r.id}
+style={{
+borderBottom: "1px solid #eee",
+padding: "12px 0"
+}}
+>
+<p style={{ margin: 0, fontWeight: "bold" }}>
+{r.nombre_requerimiento}
+</p>
+<p style={{ margin: "4px 0" }}>
+{r.sector} - {r.categoria}
+</p>
+<p style={{ margin: "4px 0", color: "#666" }}>
+Estado: {r.estado}
+</p>
+</div>
+))
+) : (
+<p>No hay requerimientos publicados todavía.</p>
+)}
+</div>
+
+<div style={cardStyle}>
+<h3>Últimas cotizaciones</h3>
+
+{cotizaciones.length > 0 ? (
+cotizaciones.slice(0, 5).map((c) => (
+<div
+key={c.id}
+style={{
+borderBottom: "1px solid #eee",
+padding: "12px 0"
+}}
+>
+<p style={{ margin: 0, fontWeight: "bold" }}>
+{c.requerimiento_nombre || "Sin requerimiento"}
+</p>
+<p style={{ margin: "4px 0" }}>
+Proveedor: {c.proveedor_nombre || "No especificado"}
+</p>
+<p style={{ margin: "4px 0", color: "#666" }}>
+Estado: {c.estado}
+</p>
+{c.valor_referencial ? (
+<p style={{ margin: "4px 0" }}>
+Valor referencial: {c.valor_referencial}
+</p>
+) : null}
+</div>
+))
+) : (
+<p>No hay cotizaciones registradas todavía.</p>
+)}
+</div>
+</div>
+);
+}
+
+export default PanelComprador;

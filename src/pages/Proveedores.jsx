@@ -81,8 +81,13 @@ coincideCategoria
 );
 })
 .sort((a, b) => {
-if (a.patrocinado === b.patrocinado) return 0;
-return a.patrocinado ? -1 : 1;
+const score = (p) => {
+if (p.patrocinado) return 3;
+if ((p.plan || "").toLowerCase() === "pro") return 2;
+return 1;
+};
+
+return score(b) - score(a);
 });
 
 const renderDocumento = (label, url) => {
@@ -96,6 +101,30 @@ Ver documento
 </a>
 </p>
 );
+};
+
+const getCardStyle = (proveedor) => {
+if (proveedor.patrocinado) {
+return {
+border: "2px solid #f0b429",
+background: "linear-gradient(180deg, #fff7db 0%, #ffffff 100%)",
+boxShadow: "0 8px 20px rgba(240,180,41,0.18)"
+};
+}
+
+if ((proveedor.plan || "").toLowerCase() === "pro") {
+return {
+border: "2px solid #2f5b8a",
+background: "linear-gradient(180deg, #f4f9ff 0%, #ffffff 100%)",
+boxShadow: "0 6px 16px rgba(47,91,138,0.10)"
+};
+}
+
+return {
+border: "1px solid #dcdcdc",
+background: "white",
+boxShadow: "0 4px 10px rgba(0,0,0,0.04)"
+};
 };
 
 return (
@@ -240,6 +269,56 @@ backgroundColor: sector ? "white" : "#f3f3f3"
 </select>
 </div>
 
+{!cargando && (
+<div
+style={{
+display: "flex",
+gap: "10px",
+flexWrap: "wrap",
+marginBottom: "16px"
+}}
+>
+<span
+style={{
+padding: "6px 10px",
+borderRadius: "999px",
+backgroundColor: "#fff3cd",
+color: "#856404",
+fontSize: "12px",
+fontWeight: "bold"
+}}
+>
+Premium / Patrocinado
+</span>
+
+<span
+style={{
+padding: "6px 10px",
+borderRadius: "999px",
+backgroundColor: "#dbeafe",
+color: "#1d4ed8",
+fontSize: "12px",
+fontWeight: "bold"
+}}
+>
+Pro
+</span>
+
+<span
+style={{
+padding: "6px 10px",
+borderRadius: "999px",
+backgroundColor: "#e5e7eb",
+color: "#374151",
+fontSize: "12px",
+fontWeight: "bold"
+}}
+>
+Gratis
+</span>
+</div>
+)}
+
 {cargando ? (
 <p>Cargando proveedores...</p>
 ) : (
@@ -249,17 +328,42 @@ Resultados encontrados: <strong>{proveedoresFiltrados.length}</strong>
 )}
 
 {!cargando && proveedoresFiltrados.length > 0 ? (
-proveedoresFiltrados.map((p) => (
+proveedoresFiltrados.map((p, index) => (
 <div
-key={p.id}
+key={p.id || `${p.nombre}-${index}`}
 style={{
-border: "1px solid #dcdcdc",
-borderRadius: "10px",
-padding: "15px",
-marginBottom: "12px"
+...getCardStyle(p),
+borderRadius: "12px",
+padding: "16px",
+marginBottom: "14px"
 }}
 >
-<h4 style={{ margin: "0 0 8px 0" }}>{p.nombre}</h4>
+{p.patrocinado && (
+<div
+style={{
+marginBottom: "10px",
+display: "inline-block",
+backgroundColor: "#f0b429",
+color: "#4a3411",
+padding: "6px 10px",
+borderRadius: "999px",
+fontSize: "12px",
+fontWeight: "bold"
+}}
+>
+⭐ PATROCINADO
+</div>
+)}
+
+<h4 style={{ margin: "0 0 8px 0" }}>
+<Link
+to={`/proveedor/${p.id || index}`}
+state={{ proveedor: p }}
+style={{ textDecoration: "none", color: "#1f3552" }}
+>
+{p.nombre}
+</Link>
+</h4>
 
 <div
 style={{
@@ -269,18 +373,33 @@ marginBottom: "10px",
 flexWrap: "wrap"
 }}
 >
-{p.patrocinado && (
+{!p.patrocinado && (p.plan || "").toLowerCase() === "pro" && (
 <span
 style={{
-backgroundColor: "#fff3cd",
-color: "#856404",
+backgroundColor: "#dbeafe",
+color: "#1d4ed8",
 padding: "4px 8px",
 borderRadius: "999px",
 fontSize: "12px",
 fontWeight: "bold"
 }}
 >
-Patrocinado
+Plan Pro
+</span>
+)}
+
+{!p.patrocinado && (p.plan || "").toLowerCase() !== "pro" && (
+<span
+style={{
+backgroundColor: "#e5e7eb",
+color: "#374151",
+padding: "4px 8px",
+borderRadius: "999px",
+fontSize: "12px",
+fontWeight: "bold"
+}}
+>
+Plan Gratis
 </span>
 )}
 
@@ -296,21 +415,6 @@ fontWeight: "bold"
 }}
 >
 Verificado
-</span>
-)}
-
-{p.plan && (
-<span
-style={{
-backgroundColor: "#e2e3e5",
-color: "#383d41",
-padding: "4px 8px",
-borderRadius: "999px",
-fontSize: "12px",
-fontWeight: "bold"
-}}
->
-{p.plan}
 </span>
 )}
 </div>
@@ -331,17 +435,41 @@ fontWeight: "bold"
 ) : null}
 <p><strong>Descripción:</strong> {p.descripcion}</p>
 
-{(p.brochure_url || p.presentacion_url || p.certificaciones_url || p.catalogo_url) && (
+{(p.brochure_url || p.presentacion_url || p.certificaciones_url || p.catalogo_url || p.brochure || p.presentacion || p.certificaciones || p.catalogo) && (
 <div style={{ marginTop: "12px" }}>
 <p style={{ fontWeight: "bold", marginBottom: "8px" }}>
 Documentos disponibles
 </p>
-{renderDocumento("Brochure", p.brochure_url)}
-{renderDocumento("Presentación", p.presentacion_url)}
-{renderDocumento("Certificaciones", p.certificaciones_url)}
-{renderDocumento("Catálogo", p.catalogo_url)}
+{renderDocumento("Brochure", p.brochure_url || p.brochure)}
+{renderDocumento("Presentación", p.presentacion_url || p.presentacion)}
+{renderDocumento("Certificaciones", p.certificaciones_url || p.certificaciones)}
+{renderDocumento("Catálogo", p.catalogo_url || p.catalogo)}
 </div>
 )}
+
+<div
+style={{
+display: "flex",
+gap: "10px",
+flexWrap: "wrap",
+marginTop: "14px"
+}}
+>
+<Link
+to={`/proveedor/${p.id || index}`}
+state={{ proveedor: p }}
+style={{
+display: "inline-block",
+backgroundColor: "#e5e7eb",
+color: "#111827",
+textDecoration: "none",
+padding: "10px 14px",
+borderRadius: "8px",
+fontWeight: "bold"
+}}
+>
+Ver perfil
+</Link>
 
 <Link
 to="/solicitar-proveedor"
@@ -353,11 +481,12 @@ color: "white",
 textDecoration: "none",
 padding: "10px 14px",
 borderRadius: "8px",
-marginTop: "12px"
+fontWeight: "bold"
 }}
 >
 Solicitar cotización directa
 </Link>
+</div>
 </div>
 ))
 ) : !cargando ? (
