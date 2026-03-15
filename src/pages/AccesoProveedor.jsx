@@ -11,6 +11,8 @@ const [password, setPassword] = useState("");
 const [usuario, setUsuario] = useState(null);
 const [cargando, setCargando] = useState(false);
 
+const RECOVERY_REDIRECT_URL = "https://procuro-app.vercel.app/recuperar-password";
+
 useEffect(() => {
 verificarSesion();
 
@@ -43,20 +45,22 @@ return;
 try {
 setCargando(true);
 
+const correoLimpio = email.trim().toLowerCase();
+
 const { error } = await supabase.auth.signUp({
-email,
+email: correoLimpio,
 password
 });
 
 if (error) {
-console.error(error);
-alert("No fue posible crear la cuenta");
+console.error("Error creando cuenta:", error);
+alert(`No fue posible crear la cuenta: ${error.message}`);
 return;
 }
 
-alert("Cuenta creada correctamente. Si Supabase pide confirmación por correo, revisa tu email.");
+alert("Cuenta creada correctamente. Revisa tu correo para confirmarla.");
 } catch (err) {
-console.error(err);
+console.error("Error inesperado registrando:", err);
 alert("Ocurrió un error al registrarte");
 } finally {
 setCargando(false);
@@ -72,21 +76,23 @@ return;
 try {
 setCargando(true);
 
+const correoLimpio = email.trim().toLowerCase();
+
 const { error } = await supabase.auth.signInWithPassword({
-email,
+email: correoLimpio,
 password
 });
 
 if (error) {
-console.error(error);
-alert("Correo o contraseña incorrectos");
+console.error("Error iniciando sesión:", error);
+alert(`No fue posible iniciar sesión: ${error.message}`);
 return;
 }
 
 alert("Sesión iniciada correctamente");
 navigate("/panel-proveedor");
 } catch (err) {
-console.error(err);
+console.error("Error inesperado iniciando sesión:", err);
 alert("Ocurrió un error al iniciar sesión");
 } finally {
 setCargando(false);
@@ -102,19 +108,21 @@ return;
 try {
 setCargando(true);
 
-const { error } = await supabase.auth.resetPasswordForEmail(email, {
-redirectTo: `${window.location.origin}/recuperar-password`
+const correoLimpio = email.trim().toLowerCase();
+
+const { error } = await supabase.auth.resetPasswordForEmail(correoLimpio, {
+redirectTo: RECOVERY_REDIRECT_URL
 });
 
 if (error) {
-console.error(error);
-alert("No fue posible enviar el correo de recuperación");
+console.error("Error enviando recuperación:", error);
+alert(`No fue posible enviar el correo de recuperación: ${error.message}`);
 return;
 }
 
 alert("Te enviamos un correo para recuperar tu contraseña.");
 } catch (err) {
-console.error(err);
+console.error("Error inesperado recuperando contraseña:", err);
 alert("Ocurrió un error al solicitar la recuperación");
 } finally {
 setCargando(false);
@@ -125,7 +133,7 @@ const cerrarSesion = async () => {
 const { error } = await supabase.auth.signOut();
 
 if (error) {
-console.error(error);
+console.error("Error cerrando sesión:", error);
 alert("No fue posible cerrar sesión");
 return;
 }
