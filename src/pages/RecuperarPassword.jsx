@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 function RecuperarPassword() {
+const navigate = useNavigate();
+
 const [password, setPassword] = useState("");
 const [confirmacion, setConfirmacion] = useState("");
 const [sessionLista, setSessionLista] = useState(false);
@@ -54,6 +56,10 @@ return;
 }
 
 alert("Contraseña actualizada correctamente");
+
+await supabase.auth.signOut();
+
+navigate("/acceso-proveedor");
 } catch (err) {
 console.error(err);
 alert("Ocurrió un error al actualizar la contraseña");
@@ -71,7 +77,7 @@ padding: "24px",
 boxShadow: "0 4px 14px rgba(0,0,0,0.08)"
 }}
 >
-<h2>Recuperar contraseña</h2>
+<h2>Recuperar contraseña proveedor</h2>
 
 {!sessionLista ? (
 <>

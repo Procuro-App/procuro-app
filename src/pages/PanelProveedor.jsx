@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 function PanelProveedor() {
+const navigate = useNavigate();
+
 const [usuario, setUsuario] = useState(null);
 const [proveedorActual, setProveedorActual] = useState(null);
 const [requerimientos, setRequerimientos] = useState([]);
@@ -67,6 +69,19 @@ console.error("Error general cargando panel:", error);
 } finally {
 setCargando(false);
 }
+};
+
+const cerrarSesion = async () => {
+const { error } = await supabase.auth.signOut();
+
+if (error) {
+console.error("Error cerrando sesión proveedor:", error);
+alert("No fue posible cerrar sesión");
+return;
+}
+
+alert("Sesión cerrada");
+navigate("/acceso-proveedor");
 };
 
 const oportunidadesRelacionadas = useMemo(() => {
@@ -156,6 +171,30 @@ return (
 <p>
 Este panel ya muestra solo la información del proveedor autenticado.
 </p>
+
+<div
+style={{
+display: "flex",
+gap: "10px",
+flexWrap: "wrap",
+marginTop: "14px"
+}}
+>
+<button
+onClick={cerrarSesion}
+style={{
+backgroundColor: "#8b1e1e",
+color: "white",
+border: "none",
+padding: "10px 14px",
+borderRadius: "8px",
+cursor: "pointer",
+fontWeight: "bold"
+}}
+>
+Cerrar sesión
+</button>
+</div>
 </div>
 
 <div
