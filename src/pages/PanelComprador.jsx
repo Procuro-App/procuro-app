@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 
 function PanelComprador() {
+const navigate = useNavigate();
+
 const [usuario, setUsuario] = useState(null);
 const [requerimientos, setRequerimientos] = useState([]);
 const [cotizaciones, setCotizaciones] = useState([]);
@@ -50,6 +52,19 @@ console.error("Error general cargando panel comprador:", error);
 } finally {
 setCargando(false);
 }
+};
+
+const cerrarSesion = async () => {
+const { error } = await supabase.auth.signOut();
+
+if (error) {
+console.error("Error cerrando sesión comprador:", error);
+alert("No fue posible cerrar sesión");
+return;
+}
+
+alert("Sesión cerrada");
+navigate("/acceso-comprador");
 };
 
 const cardStyle = {
@@ -153,6 +168,21 @@ fontWeight: "bold"
 >
 Ver cotizaciones
 </Link>
+
+<button
+onClick={cerrarSesion}
+style={{
+backgroundColor: "#8b1e1e",
+color: "white",
+border: "none",
+padding: "10px 14px",
+borderRadius: "8px",
+cursor: "pointer",
+fontWeight: "bold"
+}}
+>
+Cerrar sesión
+</button>
 </div>
 </div>
 

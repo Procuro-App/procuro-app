@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 function RecuperarPasswordComprador() {
+const navigate = useNavigate();
+
 const [password, setPassword] = useState("");
 const [confirmacion, setConfirmacion] = useState("");
 const [sessionLista, setSessionLista] = useState(false);
@@ -54,6 +56,10 @@ return;
 }
 
 alert("Contraseña actualizada correctamente");
+
+await supabase.auth.signOut();
+
+navigate("/acceso-comprador");
 } catch (err) {
 console.error(err);
 alert("Ocurrió un error al actualizar la contraseña");
