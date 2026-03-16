@@ -3,17 +3,27 @@ import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 
 function PanelComprador() {
+const [usuario, setUsuario] = useState(null);
 const [requerimientos, setRequerimientos] = useState([]);
 const [cotizaciones, setCotizaciones] = useState([]);
 const [cargando, setCargando] = useState(true);
 
 useEffect(() => {
-cargarPanel();
+cargarPanelComprador();
 }, []);
 
-const cargarPanel = async () => {
+const cargarPanelComprador = async () => {
 try {
 setCargando(true);
+
+const { data: userData } = await supabase.auth.getUser();
+const user = userData?.user || null;
+setUsuario(user);
+
+if (!user?.email) {
+setCargando(false);
+return;
+}
 
 const { data: requerimientosData, error: requerimientosError } = await supabase
 .from("requerimientos")
@@ -57,13 +67,38 @@ return (
 );
 }
 
+if (!usuario) {
+return (
+<div style={cardStyle}>
+<h2>Acceso restringido</h2>
+<p>Primero debes iniciar sesión como comprador para ver tu dashboard privado.</p>
+
+<Link
+to="/acceso-comprador"
+style={{
+display: "inline-block",
+marginTop: "12px",
+backgroundColor: "#1f3552",
+color: "white",
+textDecoration: "none",
+padding: "10px 14px",
+borderRadius: "8px",
+fontWeight: "bold"
+}}
+>
+Ir a acceso comprador
+</Link>
+</div>
+);
+}
+
 return (
 <div>
 <div style={{ ...cardStyle, marginBottom: "20px" }}>
 <h2>Dashboard comprador</h2>
+<p><strong>Comprador activo:</strong> {usuario.email}</p>
 <p>
-Desde aquí podrás revisar tus requerimientos, las cotizaciones recibidas
-y acceder rápidamente a los módulos principales de compra.
+Este dashboard ya es privado para la sesión del comprador autenticado.
 </p>
 
 <div

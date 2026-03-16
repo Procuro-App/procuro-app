@@ -10,7 +10,9 @@ import Oportunidades from "./pages/Oportunidades";
 import PanelProveedor from "./pages/PanelProveedor";
 import PanelComprador from "./pages/PanelComprador";
 import AccesoProveedor from "./pages/AccesoProveedor";
+import AccesoComprador from "./pages/AccesoComprador";
 import RecuperarPassword from "./pages/RecuperarPassword";
+import RecuperarPasswordComprador from "./pages/RecuperarPasswordComprador";
 import EnviarCotizacion from "./pages/EnviarCotizacion";
 import SolicitarProveedor from "./pages/SolicitarProveedor";
 import RegistroProveedor from "./pages/RegistroProveedor";
@@ -33,7 +35,9 @@ return (
 <Route path="/panel-proveedor" element={<PanelProveedor />} />
 <Route path="/panel-comprador" element={<PanelComprador />} />
 <Route path="/acceso-proveedor" element={<AccesoProveedor />} />
+<Route path="/acceso-comprador" element={<AccesoComprador />} />
 <Route path="/recuperar-password" element={<RecuperarPassword />} />
+<Route path="/recuperar-password-comprador" element={<RecuperarPasswordComprador />} />
 <Route path="/enviar-cotizacion/:id" element={<EnviarCotizacion />} />
 <Route path="/solicitar-proveedor" element={<SolicitarProveedor />} />
 <Route path="/registro-proveedor" element={<RegistroProveedor />} />

@@ -49,6 +49,7 @@ return (
 <Link to="/panel-proveedor" style={linkStyle}>Panel proveedor</Link>
 <Link to="/panel-comprador" style={linkStyle}>Dashboard comprador</Link>
 <Link to="/acceso-proveedor" style={linkStyle}>Acceso proveedor</Link>
+<Link to="/acceso-comprador" style={linkStyle}>Acceso comprador</Link>
 <Link to="/registro-proveedor" style={linkStyle}>Registro proveedor</Link>
 <Link to="/revision-proveedores" style={linkStyle}>Revisión proveedores</Link>
 </div>
