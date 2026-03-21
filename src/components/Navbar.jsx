@@ -2,6 +2,9 @@ import { Link } from "react-router-dom";
 import logo from "../assets/logo.png";
 
 function Navbar() {
+const isMobile =
+typeof window !== "undefined" ? window.innerWidth <= 768 : false;
+
 return (
 <nav
 style={{
@@ -11,7 +14,7 @@ marginBottom: "22px",
 boxShadow: "0 8px 22px rgba(0,0,0,0.08)",
 borderLeft: "8px solid #3b82f6",
 borderRight: "8px solid #f59e0b",
-padding: "2px 18px 6px 18px"
+padding: isMobile ? "10px 12px 14px 12px" : "8px 18px 10px 18px",
 }}
 >
 <div
@@ -20,48 +23,57 @@ display: "flex",
 flexDirection: "column",
 alignItems: "center",
 justifyContent: "center",
-gap: "6px"
+gap: isMobile ? "10px" : "6px",
 }}
 >
 <img
 src={logo}
 alt="Procuro"
 style={{
-width: "min(680px, 94%)",
-height: "400px",
+width: isMobile ? "88%" : "min(680px, 94%)",
+maxWidth: isMobile ? "320px" : "680px",
+height: "auto",
 objectFit: "contain",
 display: "block",
-marginBottom: "0"
+marginBottom: 0,
 }}
 />
 
 <div
 style={{
 width: "100%",
-maxWidth: "980px",
+maxWidth: isMobile ? "100%" : "980px",
 display: "grid",
-gridTemplateColumns: "repeat(5, 1fr)",
-gap: "10px",
-marginTop: "0"
+gridTemplateColumns: isMobile
+? "repeat(2, minmax(0, 1fr))"
+: "repeat(5, minmax(0, 1fr))",
+gap: isMobile ? "8px" : "10px",
+marginTop: 0,
 }}
 >
-<Link to="/" style={btnStyle}>
+<Link to="/" style={btnStyle(isMobile)}>
 Inicio
 </Link>
 
-<Link to="/proveedores" style={btnStyle}>
+<Link to="/proveedores" style={btnStyle(isMobile)}>
 Explorar proveedores
 </Link>
 
-<Link to="/acceso-comprador" style={btnStyle}>
+<Link to="/acceso-comprador" style={btnStyle(isMobile)}>
 Soy comprador
 </Link>
 
-<Link to="/acceso-proveedor" style={btnStyle}>
+<Link to="/acceso-proveedor" style={btnStyle(isMobile)}>
 Soy proveedor
 </Link>
 
-<Link to="/revision-proveedores" style={btnStyle}>
+<Link
+to="/revision-proveedores"
+style={{
+...btnStyle(isMobile),
+gridColumn: isMobile ? "1 / -1" : "auto",
+}}
+>
 Admin
 </Link>
 </div>
@@ -70,20 +82,21 @@ Admin
 );
 }
 
-const btnStyle = {
+const btnStyle = (isMobile) => ({
 textDecoration: "none",
 background: "linear-gradient(135deg, #1f3552, #2563eb)",
 color: "white",
 fontWeight: "bold",
-padding: "11px 10px",
+padding: isMobile ? "12px 8px" : "12px 10px",
 borderRadius: "12px",
 boxShadow: "0 4px 10px rgba(0,0,0,0.12)",
-fontSize: "15px",
+fontSize: isMobile ? "14px" : "15px",
 display: "flex",
 alignItems: "center",
 justifyContent: "center",
 textAlign: "center",
-minHeight: "44px"
-};
+minHeight: isMobile ? "44px" : "46px",
+lineHeight: 1.2,
+});
 
 export default Navbar;
