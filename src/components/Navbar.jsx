@@ -1,60 +1,89 @@
 import { Link } from "react-router-dom";
+import logo from "../assets/logo.png";
 
 function Navbar() {
-const navStyle = {
-backgroundColor: "#2f5b8a",
-padding: "18px",
-borderRadius: "18px",
-marginBottom: "20px",
-boxShadow: "0 4px 14px rgba(0,0,0,0.08)"
-};
-
-const brandStyle = {
-color: "white",
-fontSize: "clamp(30px, 7vw, 64px)",
-fontWeight: "bold",
-margin: 0,
-lineHeight: 1
-};
-
-const linksContainerStyle = {
-display: "grid",
-gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-gap: "10px",
-marginTop: "18px"
-};
-
-const linkStyle = {
-color: "white",
-textDecoration: "none",
-fontWeight: "600",
-fontSize: "clamp(13px, 2.8vw, 17px)",
-padding: "10px 12px",
-borderRadius: "10px",
-textAlign: "center",
-backgroundColor: "rgba(255,255,255,0.08)"
-};
-
 return (
-<nav style={navStyle}>
-<h1 style={brandStyle}>PROCURO</h1>
+<nav
+style={{
+backgroundColor: "white",
+borderRadius: "22px",
+marginBottom: "22px",
+boxShadow: "0 8px 22px rgba(0,0,0,0.08)",
+borderLeft: "8px solid #3b82f6",
+borderRight: "8px solid #f59e0b",
+padding: "2px 18px 6px 18px"
+}}
+>
+<div
+style={{
+display: "flex",
+flexDirection: "column",
+alignItems: "center",
+justifyContent: "center",
+gap: "6px"
+}}
+>
+<img
+src={logo}
+alt="Procuro"
+style={{
+width: "min(680px, 94%)",
+height: "400px",
+objectFit: "contain",
+display: "block",
+marginBottom: "0"
+}}
+/>
 
-<div style={linksContainerStyle}>
-<Link to="/" style={linkStyle}>Inicio</Link>
-<Link to="/proveedores" style={linkStyle}>Proveedores</Link>
-<Link to="/requerimientos" style={linkStyle}>Requerimientos</Link>
-<Link to="/cotizaciones" style={linkStyle}>Cotizaciones</Link>
-<Link to="/comparador-cotizaciones" style={linkStyle}>Comparador</Link>
-<Link to="/oportunidades" style={linkStyle}>Oportunidades</Link>
-<Link to="/panel-proveedor" style={linkStyle}>Panel proveedor</Link>
-<Link to="/panel-comprador" style={linkStyle}>Dashboard comprador</Link>
-<Link to="/acceso-proveedor" style={linkStyle}>Acceso proveedor</Link>
-<Link to="/acceso-comprador" style={linkStyle}>Acceso comprador</Link>
-<Link to="/registro-proveedor" style={linkStyle}>Registro proveedor</Link>
-<Link to="/revision-proveedores" style={linkStyle}>Revisión proveedores</Link>
+<div
+style={{
+width: "100%",
+maxWidth: "980px",
+display: "grid",
+gridTemplateColumns: "repeat(5, 1fr)",
+gap: "10px",
+marginTop: "0"
+}}
+>
+<Link to="/" style={btnStyle}>
+Inicio
+</Link>
+
+<Link to="/proveedores" style={btnStyle}>
+Explorar proveedores
+</Link>
+
+<Link to="/acceso-comprador" style={btnStyle}>
+Soy comprador
+</Link>
+
+<Link to="/acceso-proveedor" style={btnStyle}>
+Soy proveedor
+</Link>
+
+<Link to="/revision-proveedores" style={btnStyle}>
+Admin
+</Link>
+</div>
 </div>
 </nav>
 );
 }
+
+const btnStyle = {
+textDecoration: "none",
+background: "linear-gradient(135deg, #1f3552, #2563eb)",
+color: "white",
+fontWeight: "bold",
+padding: "11px 10px",
+borderRadius: "12px",
+boxShadow: "0 4px 10px rgba(0,0,0,0.12)",
+fontSize: "15px",
+display: "flex",
+alignItems: "center",
+justifyContent: "center",
+textAlign: "center",
+minHeight: "44px"
+};
 
 export default Navbar;

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 
@@ -22,7 +22,7 @@ const { data: userData } = await supabase.auth.getUser();
 const user = userData?.user || null;
 setUsuario(user);
 
-if (!user?.email) {
+if (!user?.id || !user?.email) {
 setCargando(false);
 return;
 }
@@ -30,23 +30,36 @@ return;
 const { data: requerimientosData, error: requerimientosError } = await supabase
 .from("requerimientos")
 .select("*")
-.order("created_at", { ascending: false });
-
-const { data: cotizacionesData, error: cotizacionesError } = await supabase
-.from("cotizaciones")
-.select("*")
+.eq("comprador_user_id", user.id)
 .order("created_at", { ascending: false });
 
 if (requerimientosError) {
 console.error("Error cargando requerimientos:", requerimientosError);
+setCargando(false);
+return;
 }
 
-if (cotizacionesError) {
-console.error("Error cargando cotizaciones:", cotizacionesError);
+const nombresRequerimientos = (requerimientosData || []).map(
+(r) => r.nombre_requerimiento
+);
+
+let cotizacionesData = [];
+if (nombresRequerimientos.length > 0) {
+const { data, error } = await supabase
+.from("cotizaciones")
+.select("*")
+.in("requerimiento_nombre", nombresRequerimientos)
+.order("created_at", { ascending: false });
+
+if (error) {
+console.error("Error cargando cotizaciones:", error);
+} else {
+cotizacionesData = data || [];
+}
 }
 
 setRequerimientos(requerimientosData || []);
-setCotizaciones(cotizacionesData || []);
+setCotizaciones(cotizacionesData);
 } catch (error) {
 console.error("Error general cargando panel comprador:", error);
 } finally {
@@ -67,11 +80,28 @@ alert("Sesión cerrada");
 navigate("/acceso-comprador");
 };
 
+const requerimientosAbiertos = useMemo(() => {
+return requerimientos.filter(
+(r) => (r.estado || "").toLowerCase() === "abierto"
+).length;
+}, [requerimientos]);
+
 const cardStyle = {
 backgroundColor: "white",
 borderRadius: "16px",
 padding: "20px",
 boxShadow: "0 4px 14px rgba(0,0,0,0.08)"
+};
+
+const accesoStyle = {
+display: "inline-block",
+backgroundColor: "#1f3552",
+color: "white",
+textDecoration: "none",
+padding: "12px 14px",
+borderRadius: "10px",
+fontWeight: "bold",
+textAlign: "center"
 };
 
 if (cargando) {
@@ -112,61 +142,30 @@ return (
 <div style={{ ...cardStyle, marginBottom: "20px" }}>
 <h2>Dashboard comprador</h2>
 <p><strong>Comprador activo:</strong> {usuario.email}</p>
-<p>
-Este dashboard ya es privado para la sesión del comprador autenticado.
-</p>
+<p>Este es tu centro de control como comprador.</p>
 
 <div
 style={{
-display: "flex",
-gap: "10px",
-flexWrap: "wrap",
-marginTop: "14px"
+display: "grid",
+gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+gap: "12px",
+marginTop: "16px"
 }}
 >
-<Link
-to="/requerimientos"
-style={{
-display: "inline-block",
-backgroundColor: "#1f3552",
-color: "white",
-textDecoration: "none",
-padding: "10px 14px",
-borderRadius: "8px",
-fontWeight: "bold"
-}}
->
-Publicar requerimiento
+<Link to="/requerimientos" style={accesoStyle}>
+Requerimientos
 </Link>
 
-<Link
-to="/proveedores"
-style={{
-display: "inline-block",
-backgroundColor: "#e5e7eb",
-color: "#111827",
-textDecoration: "none",
-padding: "10px 14px",
-borderRadius: "8px",
-fontWeight: "bold"
-}}
->
-Buscar proveedores
+<Link to="/cotizaciones" style={accesoStyle}>
+Cotizaciones
 </Link>
 
-<Link
-to="/cotizaciones"
-style={{
-display: "inline-block",
-backgroundColor: "#dbeafe",
-color: "#1d4ed8",
-textDecoration: "none",
-padding: "10px 14px",
-borderRadius: "8px",
-fontWeight: "bold"
-}}
->
-Ver cotizaciones
+<Link to="/comparador-cotizaciones" style={accesoStyle}>
+Comparativo de cotizaciones
+</Link>
+
+<Link to="/mi-perfil-comprador" style={accesoStyle}>
+Mi perfil comprador
 </Link>
 
 <button
@@ -175,8 +174,8 @@ style={{
 backgroundColor: "#8b1e1e",
 color: "white",
 border: "none",
-padding: "10px 14px",
-borderRadius: "8px",
+padding: "12px 14px",
+borderRadius: "10px",
 cursor: "pointer",
 fontWeight: "bold"
 }}
@@ -195,70 +194,49 @@ marginBottom: "20px"
 }}
 >
 <div style={cardStyle}>
-<h3>Requerimientos</h3>
+<h3>Mis requerimientos</h3>
 <p style={{ fontSize: "32px", fontWeight: "bold", margin: "10px 0" }}>
 {requerimientos.length}
 </p>
-<p>Registros publicados en la plataforma</p>
 </div>
 
 <div style={cardStyle}>
-<h3>Cotizaciones recibidas</h3>
+<h3>Mis cotizaciones recibidas</h3>
 <p style={{ fontSize: "32px", fontWeight: "bold", margin: "10px 0" }}>
 {cotizaciones.length}
 </p>
-<p>Respuestas generadas por proveedores</p>
 </div>
 
 <div style={cardStyle}>
-<h3>Requerimientos abiertos</h3>
+<h3>Mis requerimientos abiertos</h3>
 <p style={{ fontSize: "32px", fontWeight: "bold", margin: "10px 0" }}>
-{requerimientos.filter((r) => (r.estado || "").toLowerCase() === "abierto").length}
+{requerimientosAbiertos}
 </p>
-<p>Oportunidades activas publicadas</p>
 </div>
 </div>
 
 <div style={{ ...cardStyle, marginBottom: "20px" }}>
-<h3>Últimos requerimientos</h3>
+<h3>Mis últimos requerimientos</h3>
 
 {requerimientos.length > 0 ? (
 requerimientos.slice(0, 5).map((r) => (
-<div
-key={r.id}
-style={{
-borderBottom: "1px solid #eee",
-padding: "12px 0"
-}}
->
-<p style={{ margin: 0, fontWeight: "bold" }}>
-{r.nombre_requerimiento}
-</p>
-<p style={{ margin: "4px 0" }}>
-{r.sector} - {r.categoria}
-</p>
-<p style={{ margin: "4px 0", color: "#666" }}>
-Estado: {r.estado}
-</p>
+<div key={r.id} style={{ borderBottom: "1px solid #eee", padding: "12px 0" }}>
+<p style={{ margin: 0, fontWeight: "bold" }}>{r.nombre_requerimiento}</p>
+<p style={{ margin: "4px 0" }}>{r.sector} - {r.categoria}</p>
+<p style={{ margin: "4px 0", color: "#666" }}>Estado: {r.estado}</p>
 </div>
 ))
 ) : (
-<p>No hay requerimientos publicados todavía.</p>
+<p>No tienes requerimientos todavía.</p>
 )}
 </div>
 
 <div style={cardStyle}>
-<h3>Últimas cotizaciones</h3>
+<h3>Mis últimas cotizaciones</h3>
 
 {cotizaciones.length > 0 ? (
 cotizaciones.slice(0, 5).map((c) => (
-<div
-key={c.id}
-style={{
-borderBottom: "1px solid #eee",
-padding: "12px 0"
-}}
->
+<div key={c.id} style={{ borderBottom: "1px solid #eee", padding: "12px 0" }}>
 <p style={{ margin: 0, fontWeight: "bold" }}>
 {c.requerimiento_nombre || "Sin requerimiento"}
 </p>
@@ -268,15 +246,10 @@ Proveedor: {c.proveedor_nombre || "No especificado"}
 <p style={{ margin: "4px 0", color: "#666" }}>
 Estado: {c.estado}
 </p>
-{c.valor_referencial ? (
-<p style={{ margin: "4px 0" }}>
-Valor referencial: {c.valor_referencial}
-</p>
-) : null}
 </div>
 ))
 ) : (
-<p>No hay cotizaciones registradas todavía.</p>
+<p>No tienes cotizaciones todavía.</p>
 )}
 </div>
 </div>

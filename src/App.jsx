@@ -17,6 +17,7 @@ import EnviarCotizacion from "./pages/EnviarCotizacion";
 import SolicitarProveedor from "./pages/SolicitarProveedor";
 import RegistroProveedor from "./pages/RegistroProveedor";
 import RevisionProveedores from "./pages/RevisionProveedores";
+import MiPerfilComprador from "./pages/MiPerfilComprador";
 
 function App() {
 return (
@@ -42,6 +43,7 @@ return (
 <Route path="/solicitar-proveedor" element={<SolicitarProveedor />} />
 <Route path="/registro-proveedor" element={<RegistroProveedor />} />
 <Route path="/revision-proveedores" element={<RevisionProveedores />} />
+<Route path="/mi-perfil-comprador" element={<MiPerfilComprador />} />
 </Routes>
 </div>
 </BrowserRouter>

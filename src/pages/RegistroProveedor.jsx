@@ -1,13 +1,36 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { sectores } from "../data/categorias";
 import { paises } from "../data/paises";
 import { provinciasEcuador } from "../data/provinciasEcuador";
 import { ciudadesEcuador } from "../data/ciudadesEcuador";
 import { supabase } from "../lib/supabase";
+import { Link, useNavigate } from "react-router-dom";
+
+const validarIdentificacionFiscal = (valor) => {
+if (!valor) return false;
+
+const limpio = String(valor).trim();
+
+// Permite letras, números y guiones
+if (!/^[A-Za-z0-9-]+$/.test(limpio)) return false;
+
+// Longitud flexible para IDs fiscales internacionales
+if (limpio.length < 8 || limpio.length > 20) return false;
+
+return true;
+};
 
 function RegistroProveedor() {
+const navigate = useNavigate();
+
+const [usuario, setUsuario] = useState(null);
+const [proveedorId, setProveedorId] = useState(null);
+const [modoEdicion, setModoEdicion] = useState(false);
+const [cargando, setCargando] = useState(true);
+
 const [nombre, setNombre] = useState("");
 const [tipoPersona, setTipoPersona] = useState("");
+const [rucRut, setRucRut] = useState("");
 const [cobertura, setCobertura] = useState("");
 const [pais, setPais] = useState("");
 const [provincia, setProvincia] = useState("");
@@ -27,6 +50,75 @@ const [certificaciones, setCertificaciones] = useState(null);
 const [catalogo, setCatalogo] = useState(null);
 
 const [guardando, setGuardando] = useState(false);
+
+useEffect(() => {
+iniciar();
+}, []);
+
+const iniciar = async () => {
+try {
+setCargando(true);
+
+const { data: userData, error: userError } = await supabase.auth.getUser();
+
+if (userError) {
+console.error("Error obteniendo usuario autenticado:", userError);
+setCargando(false);
+return;
+}
+
+const user = userData?.user || null;
+setUsuario(user);
+
+if (!user?.email) {
+setCargando(false);
+return;
+}
+
+setEmail(user.email);
+
+const { data, error } = await supabase
+.from("proveedores")
+.select("*")
+.eq("email", user.email)
+.order("created_at", { ascending: false })
+.limit(1);
+
+if (error) {
+console.error("Error cargando proveedor existente:", error);
+setCargando(false);
+return;
+}
+
+const proveedor = data?.[0] || null;
+
+if (proveedor) {
+setModoEdicion(true);
+setProveedorId(proveedor.id);
+
+setNombre(proveedor.nombre || "");
+setTipoPersona(proveedor.tipo_persona || "");
+setRucRut(proveedor.ruc_rut || "");
+setCobertura(proveedor.cobertura || "");
+setPais(proveedor.pais || "");
+setProvincia(proveedor.provincia || "");
+setCiudad(proveedor.ciudad || "");
+setSector(proveedor.sector || "");
+setCategoria(proveedor.categoria || "");
+setDescripcion(proveedor.descripcion || "");
+setContacto(proveedor.contacto || "");
+setCargo(proveedor.cargo || "");
+setEmail(proveedor.email || user.email || "");
+setTelefono(proveedor.telefono || "");
+setTelefonoSecundario(proveedor.telefono_secundario || "");
+}
+
+setCargando(false);
+} catch (err) {
+console.error("Error general iniciando registro/edición proveedor:", err);
+setCargando(false);
+}
+};
 
 const categoriasDisponibles = sector ? sectores[sector] || [] : [];
 const ciudadesDisponibles = provincia ? ciudadesEcuador[provincia] || [] : [];
@@ -49,17 +141,16 @@ console.error(`Error subiendo archivo ${carpeta}:`, error);
 throw error;
 }
 
-const { data } = supabase.storage
-.from("proveedores")
-.getPublicUrl(ruta);
+const { data } = supabase.storage.from("proveedores").getPublicUrl(ruta);
 
 return data?.publicUrl || "";
 };
 
-const registrarProveedor = async () => {
+const guardarProveedor = async () => {
 if (
 !nombre ||
 !tipoPersona ||
+!rucRut ||
 !cobertura ||
 !pais ||
 !sector ||
@@ -69,6 +160,13 @@ if (
 !telefono
 ) {
 alert("Por favor completa los campos obligatorios");
+return;
+}
+
+if (!validarIdentificacionFiscal(rucRut)) {
+alert(
+"La identificación fiscal debe tener entre 8 y 20 caracteres, usando solo letras, números o guiones."
+);
 return;
 }
 
@@ -90,26 +188,15 @@ let presentacionUrl = "";
 let certificacionesUrl = "";
 let catalogoUrl = "";
 
-if (brochure) {
-brochureUrl = await subirArchivoProveedor(brochure, "brochure");
-}
+if (brochure) brochureUrl = await subirArchivoProveedor(brochure, "brochure");
+if (presentacion) presentacionUrl = await subirArchivoProveedor(presentacion, "presentacion");
+if (certificaciones) certificacionesUrl = await subirArchivoProveedor(certificaciones, "certificaciones");
+if (catalogo) catalogoUrl = await subirArchivoProveedor(catalogo, "catalogo");
 
-if (presentacion) {
-presentacionUrl = await subirArchivoProveedor(presentacion, "presentacion");
-}
-
-if (certificaciones) {
-certificacionesUrl = await subirArchivoProveedor(certificaciones, "certificaciones");
-}
-
-if (catalogo) {
-catalogoUrl = await subirArchivoProveedor(catalogo, "catalogo");
-}
-
-const { error } = await supabase.from("proveedores").insert([
-{
+const payloadBase = {
 nombre,
 tipo_persona: tipoPersona,
+ruc_rut: String(rucRut).trim(),
 cobertura,
 pais,
 provincia,
@@ -121,7 +208,13 @@ contacto,
 cargo,
 email,
 telefono,
-telefono_secundario: telefonoSecundario,
+telefono_secundario: telefonoSecundario
+};
+
+if (!modoEdicion) {
+const { error } = await supabase.from("proveedores").insert([
+{
+...payloadBase,
 brochure_url: brochureUrl,
 presentacion_url: presentacionUrl,
 certificaciones_url: certificacionesUrl,
@@ -141,32 +234,85 @@ return;
 }
 
 alert("Proveedor enviado a revisión correctamente");
+} else {
+const updatePayload = {
+...payloadBase
+};
 
-setNombre("");
-setTipoPersona("");
-setCobertura("");
-setPais("");
-setProvincia("");
-setCiudad("");
-setSector("");
-setCategoria("");
-setDescripcion("");
-setContacto("");
-setCargo("");
-setEmail("");
-setTelefono("");
-setTelefonoSecundario("");
-setBrochure(null);
-setPresentacion(null);
-setCertificaciones(null);
-setCatalogo(null);
+if (brochureUrl) updatePayload.brochure_url = brochureUrl;
+if (presentacionUrl) updatePayload.presentacion_url = presentacionUrl;
+if (certificacionesUrl) updatePayload.certificaciones_url = certificacionesUrl;
+if (catalogoUrl) updatePayload.catalogo_url = catalogoUrl;
+
+const { error } = await supabase
+.from("proveedores")
+.update(updatePayload)
+.eq("id", proveedorId);
+
+if (error) {
+console.error(error);
+alert("Hubo un problema al guardar los cambios");
+return;
+}
+
+alert("Perfil de proveedor actualizado correctamente");
+}
+
+await iniciar();
 } catch (err) {
 console.error(err);
-alert("Ocurrió un error al subir los archivos o registrar el proveedor");
+alert("Ocurrió un error al subir archivos o guardar el proveedor");
 } finally {
 setGuardando(false);
 }
 };
+
+if (cargando) {
+return (
+<div
+style={{
+backgroundColor: "white",
+borderRadius: "16px",
+padding: "24px",
+boxShadow: "0 4px 14px rgba(0,0,0,0.08)"
+}}
+>
+<p>Cargando formulario de proveedor...</p>
+</div>
+);
+}
+
+if (!usuario) {
+return (
+<div
+style={{
+backgroundColor: "white",
+borderRadius: "16px",
+padding: "24px",
+boxShadow: "0 4px 14px rgba(0,0,0,0.08)"
+}}
+>
+<h2>Mi perfil proveedor</h2>
+<p>Debes iniciar sesión como proveedor para registrar o editar tu perfil.</p>
+
+<Link
+to="/acceso-proveedor"
+style={{
+display: "inline-block",
+marginTop: "12px",
+backgroundColor: "#1f3552",
+color: "white",
+textDecoration: "none",
+padding: "10px 14px",
+borderRadius: "8px",
+fontWeight: "bold"
+}}
+>
+Ir a acceso proveedor
+</Link>
+</div>
+);
+}
 
 return (
 <div
@@ -177,7 +323,32 @@ padding: "24px",
 boxShadow: "0 4px 14px rgba(0,0,0,0.08)"
 }}
 >
-<h2>Registro de proveedor</h2>
+<button
+onClick={() => navigate(-1)}
+style={{
+marginBottom: "10px",
+backgroundColor: "#e5e7eb",
+border: "none",
+padding: "8px 12px",
+borderRadius: "8px",
+cursor: "pointer",
+fontWeight: "bold"
+}}
+>
+← Volver
+</button>
+
+<h2>Mi perfil proveedor</h2>
+
+{modoEdicion ? (
+<p style={{ marginBottom: "16px", color: "#555" }}>
+Puedes actualizar tu información. El correo de acceso se mantiene bloqueado por seguridad.
+</p>
+) : (
+<p style={{ marginBottom: "16px", color: "#555" }}>
+Completa tu registro como proveedor. El correo usado en tu sesión será tu correo de acceso.
+</p>
+)}
 
 <input
 type="text"
@@ -208,6 +379,24 @@ border: "1px solid #ccc"
 <option value="Persona Natural">Persona Natural</option>
 <option value="Persona Jurídica">Persona Jurídica</option>
 </select>
+
+<input
+type="text"
+placeholder="RUC / RUT / Tax ID"
+value={rucRut}
+onChange={(e) => setRucRut(e.target.value)}
+style={{
+width: "100%",
+padding: "12px",
+marginBottom: "6px",
+borderRadius: "10px",
+border: "1px solid #ccc"
+}}
+/>
+
+<p style={{ color: "#6c757d", fontSize: "14px", marginBottom: "12px" }}>
+Ingresa una identificación fiscal válida entre 8 y 20 caracteres. Puede contener letras, números o guiones.
+</p>
 
 <div
 style={{
@@ -392,11 +581,13 @@ border: "1px solid #ccc"
 type="email"
 placeholder="Correo electrónico"
 value={email}
-onChange={(e) => setEmail(e.target.value)}
+disabled
 style={{
 padding: "12px",
 borderRadius: "10px",
-border: "1px solid #ccc"
+border: "1px solid #ccc",
+backgroundColor: "#f3f3f3",
+color: "#666"
 }}
 />
 
@@ -426,10 +617,10 @@ border: "1px solid #ccc"
 </div>
 
 <p style={{ color: "#6c757d", fontSize: "14px", marginBottom: "16px" }}>
-Nota: El teléfono principal debe corresponder a un número institucional o corporativo que permanezca activo en el tiempo. Evite registrar números personales que puedan cambiar por rotación de personal.
+Para cambiar tu correo de acceso, solicitaremos ese flujo en una etapa posterior. Por ahora el correo queda bloqueado por seguridad.
 </p>
 
-<h3 style={{ marginTop: "20px" }}>Documentos opcionales</h3>
+<h3 style={{ marginTop: "20px" }}>Actualizar documentos (opcional)</h3>
 
 <div
 style={{
@@ -501,7 +692,7 @@ width: "100%"
 </div>
 
 <button
-onClick={registrarProveedor}
+onClick={guardarProveedor}
 disabled={guardando}
 style={{
 backgroundColor: "#1f3552",
@@ -512,7 +703,11 @@ borderRadius: "10px",
 cursor: "pointer"
 }}
 >
-{guardando ? "Guardando..." : "Registrar proveedor"}
+{guardando
+? "Guardando..."
+: modoEdicion
+? "Guardar cambios"
+: "Registrar proveedor"}
 </button>
 </div>
 );

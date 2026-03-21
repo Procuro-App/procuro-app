@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { proveedores as proveedoresBase } from "../data/proveedoresData";
 
 function Oportunidades() {
-const [requerimientos, setRequerimientos] = useState([]);
-const [proveedoresSupabase, setProveedoresSupabase] = useState([]);
-const [proveedorSeleccionado, setProveedorSeleccionado] = useState("");
+const navigate = useNavigate();
+
+const [usuario, setUsuario] = useState(null);
+const [proveedorActual, setProveedorActual] = useState(null);
+const [oportunidades, setOportunidades] = useState([]);
 const [cargando, setCargando] = useState(true);
 
 useEffect(() => {
@@ -17,64 +18,70 @@ const cargarOportunidades = async () => {
 try {
 setCargando(true);
 
+const { data: userData, error: userError } = await supabase.auth.getUser();
+
+if (userError) {
+console.error("Error obteniendo usuario autenticado:", userError);
+setCargando(false);
+return;
+}
+
+const user = userData?.user || null;
+setUsuario(user);
+
+if (!user?.email) {
+setCargando(false);
+return;
+}
+
+const { data: proveedoresData, error: proveedorError } = await supabase
+.from("proveedores")
+.select("*")
+.eq("email", user.email)
+.order("created_at", { ascending: false })
+.limit(1);
+
+if (proveedorError) {
+console.error("Error cargando proveedor:", proveedorError);
+setCargando(false);
+return;
+}
+
+const proveedor = proveedoresData?.[0] || null;
+setProveedorActual(proveedor);
+
+if (!proveedor?.sector) {
+setOportunidades([]);
+setCargando(false);
+return;
+}
+
 const { data: requerimientosData, error: requerimientosError } = await supabase
 .from("requerimientos")
 .select("*")
 .eq("estado", "Abierto")
 .order("created_at", { ascending: false });
 
-const { data: proveedoresData, error: proveedoresError } = await supabase
-.from("proveedores")
-.select("*")
-.eq("estado", "Aprobado")
-.order("created_at", { ascending: false });
-
 if (requerimientosError) {
-console.error("Error cargando oportunidades:", requerimientosError);
+console.error("Error cargando requerimientos:", requerimientosError);
+setCargando(false);
+return;
 }
 
-if (proveedoresError) {
-console.error("Error cargando proveedores:", proveedoresError);
-}
+const oportunidadesFiltradas = (requerimientosData || []).filter((r) => {
+const sectorRequerimiento = (r.sector || "").trim().toLowerCase();
+const sectorProveedor = (proveedor.sector || "").trim().toLowerCase();
 
-setRequerimientos(requerimientosData || []);
-setProveedoresSupabase(proveedoresData || []);
+return sectorRequerimiento === sectorProveedor;
+});
+
+setOportunidades(oportunidadesFiltradas);
 } catch (error) {
 console.error("Error general cargando oportunidades:", error);
 } finally {
 setCargando(false);
 }
 };
-
-const todosLosProveedores = useMemo(() => {
-return [...proveedoresBase, ...proveedoresSupabase];
-}, [proveedoresSupabase]);
-
-const proveedorActual = useMemo(() => {
-if (!proveedorSeleccionado) return null;
-
-return (
-todosLosProveedores.find(
-(p) => (p.nombre || "").toLowerCase() === proveedorSeleccionado.toLowerCase()
-) || null
-);
-}, [proveedorSeleccionado, todosLosProveedores]);
-
-const oportunidadesFiltradas = useMemo(() => {
-if (!proveedorActual) return requerimientos;
-
-return requerimientos.filter((r) => {
-const mismaCategoria =
-(r.categoria || "").toLowerCase() ===
-(proveedorActual.categoria || "").toLowerCase();
-
-const mismoSector =
-(r.sector || "").toLowerCase() ===
-(proveedorActual.sector || "").toLowerCase();
-
-return mismaCategoria || mismoSector;
-});
-}, [requerimientos, proveedorActual]);
 
 const cardStyle = {
 backgroundColor: "white",
@@ -83,103 +90,25 @@ padding: "20px",
 boxShadow: "0 4px 14px rgba(0,0,0,0.08)"
 };
 
+if (cargando) {
 return (
-<div>
-<div style={{ ...cardStyle, marginBottom: "20px" }}>
-<h2>Muro de oportunidades</h2>
-<p>
-Aquí se muestran los requerimientos abiertos publicados por compradores en PROCURO.
-</p>
-<p>
-Puedes ver todas las oportunidades o filtrar según un proveedor para visualizar las más relacionadas con su sector o categoría.
-</p>
-
-<select
-value={proveedorSeleccionado}
-onChange={(e) => setProveedorSeleccionado(e.target.value)}
-style={{
-width: "100%",
-padding: "12px",
-borderRadius: "10px",
-border: "1px solid #ccc",
-marginTop: "12px"
-}}
->
-<option value="">Ver todas las oportunidades</option>
-{todosLosProveedores.map((p, index) => (
-<option key={p.id || `${p.nombre}-${index}`} value={p.nombre}>
-{p.nombre}
-</option>
-))}
-</select>
-</div>
-
-{cargando ? (
 <div style={cardStyle}>
 <p>Cargando oportunidades...</p>
 </div>
-) : (
-<div style={{ ...cardStyle }}>
-<p style={{ marginBottom: "20px", color: "#555" }}>
-Oportunidades encontradas: <strong>{oportunidadesFiltradas.length}</strong>
-</p>
+);
+}
 
-{oportunidadesFiltradas.length > 0 ? (
-oportunidadesFiltradas.map((r) => (
-<div
-key={r.id}
-style={{
-border: "1px solid #dcdcdc",
-borderRadius: "10px",
-padding: "15px",
-marginBottom: "12px"
-}}
->
-<div
-style={{
-display: "flex",
-justifyContent: "space-between",
-gap: "10px",
-alignItems: "flex-start",
-flexWrap: "wrap"
-}}
->
-<h3 style={{ margin: 0 }}>{r.nombre_requerimiento}</h3>
+if (!usuario) {
+return (
+<div style={cardStyle}>
+<h2>Oportunidades</h2>
+<p>Debes iniciar sesión como proveedor para ver oportunidades.</p>
 
-<span
-style={{
-backgroundColor: "#d1ecf1",
-color: "#0c5460",
-padding: "4px 8px",
-borderRadius: "999px",
-fontSize: "12px",
-fontWeight: "bold"
-}}
->
-{r.estado}
-</span>
-</div>
-
-{r.cobertura ? <p><strong>Cobertura:</strong> {r.cobertura}</p> : null}
-{r.pais ? <p><strong>País:</strong> {r.pais}</p> : null}
-{r.provincia ? <p><strong>Provincia:</strong> {r.provincia}</p> : null}
-{r.ciudad ? <p><strong>Ciudad:</strong> {r.ciudad}</p> : null}
-<p><strong>Sector:</strong> {r.sector}</p>
-<p><strong>Categoría:</strong> {r.categoria}</p>
-{r.descripcion ? <p><strong>Descripción:</strong> {r.descripcion}</p> : null}
-
-<div
-style={{
-display: "flex",
-gap: "10px",
-flexWrap: "wrap",
-marginTop: "12px"
-}}
->
 <Link
-to={`/enviar-cotizacion/${r.id}`}
+to="/acceso-proveedor"
 style={{
 display: "inline-block",
+marginTop: "12px",
 backgroundColor: "#1f3552",
 color: "white",
 textDecoration: "none",
@@ -188,31 +117,120 @@ borderRadius: "8px",
 fontWeight: "bold"
 }}
 >
-Cotizar oportunidad
+Ir a acceso proveedor
 </Link>
+</div>
+);
+}
 
-<Link
-to="/proveedores"
+if (!proveedorActual) {
+return (
+<div style={cardStyle}>
+<button
+onClick={() => navigate("/panel-proveedor")}
 style={{
-display: "inline-block",
+marginBottom: "12px",
 backgroundColor: "#e5e7eb",
-color: "#111827",
-textDecoration: "none",
-padding: "10px 14px",
+border: "none",
+padding: "8px 12px",
 borderRadius: "8px",
+cursor: "pointer",
 fontWeight: "bold"
 }}
 >
-Buscar proveedores
-</Link>
+← Volver al panel proveedor
+</button>
+
+<h2>Oportunidades</h2>
+<p>No encontramos un proveedor vinculado a este correo.</p>
 </div>
+);
+}
+
+return (
+<div>
+<div style={{ ...cardStyle, marginBottom: "20px" }}>
+<button
+onClick={() => navigate("/panel-proveedor")}
+style={{
+marginBottom: "12px",
+backgroundColor: "#e5e7eb",
+border: "none",
+padding: "8px 12px",
+borderRadius: "8px",
+cursor: "pointer",
+fontWeight: "bold"
+}}
+>
+← Volver al panel proveedor
+</button>
+
+<h2>Oportunidades</h2>
+<p>
+Estas son oportunidades alineadas a tu sector:{" "}
+<strong>{proveedorActual.sector || "No definido"}</strong>
+</p>
+</div>
+
+<div style={cardStyle}>
+{oportunidades.length > 0 ? (
+oportunidades.map((o) => (
+<div
+key={o.id}
+style={{
+border: "1px solid #dcdcdc",
+borderRadius: "10px",
+padding: "15px",
+marginBottom: "12px"
+}}
+>
+<h3 style={{ marginTop: 0 }}>
+{o.nombre_requerimiento || "Sin nombre"}
+</h3>
+
+<p>
+<strong>Sector:</strong> {o.sector || "No especificado"}
+</p>
+
+<p>
+<strong>Categoría:</strong> {o.categoria || "No especificada"}
+</p>
+
+{o.descripcion ? (
+<p>
+<strong>Descripción:</strong> {o.descripcion}
+</p>
+) : null}
+
+{o.archivo_url ? (
+<p>
+<strong>Archivo:</strong>{" "}
+<a href={o.archivo_url} target="_blank" rel="noreferrer">
+Ver archivo
+</a>
+</p>
+) : null}
+
+<Link
+to={`/enviar-cotizacion/${o.id}`}
+style={{
+display: "inline-block",
+marginTop: "8px",
+backgroundColor: "#1f3552",
+color: "white",
+textDecoration: "none",
+padding: "8px 12px",
+borderRadius: "8px"
+}}
+>
+Enviar cotización
+</Link>
 </div>
 ))
 ) : (
-<p>No hay oportunidades disponibles para este criterio.</p>
+<p>No hay oportunidades disponibles para tu sector.</p>
 )}
 </div>
-)}
 </div>
 );
 }

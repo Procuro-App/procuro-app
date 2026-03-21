@@ -28,11 +28,12 @@ setCargando(false);
 return;
 }
 
-const { data: proveedorData, error: proveedorError } = await supabase
+const { data: proveedoresData, error: proveedorError } = await supabase
 .from("proveedores")
 .select("*")
 .eq("email", user.email)
-.single();
+.order("created_at", { ascending: false })
+.limit(1);
 
 if (proveedorError) {
 console.error("Error cargando proveedor actual:", proveedorError);
@@ -40,7 +41,13 @@ setCargando(false);
 return;
 }
 
-setProveedorActual(proveedorData);
+const proveedor = proveedoresData?.[0] || null;
+setProveedorActual(proveedor);
+
+if (!proveedor) {
+setCargando(false);
+return;
+}
 
 const { data: requerimientosData, error: requerimientosError } = await supabase
 .from("requerimientos")
@@ -51,7 +58,7 @@ const { data: requerimientosData, error: requerimientosError } = await supabase
 const { data: cotizacionesData, error: cotizacionesError } = await supabase
 .from("cotizaciones")
 .select("*")
-.eq("proveedor_nombre", proveedorData.nombre)
+.eq("proveedor_nombre", proveedor.nombre)
 .order("created_at", { ascending: false });
 
 if (requerimientosError) {
@@ -65,7 +72,7 @@ console.error("Error cargando cotizaciones:", cotizacionesError);
 setRequerimientos(requerimientosData || []);
 setCotizaciones(cotizacionesData || []);
 } catch (error) {
-console.error("Error general cargando panel:", error);
+console.error("Error general cargando panel proveedor:", error);
 } finally {
 setCargando(false);
 }
@@ -88,31 +95,29 @@ const oportunidadesRelacionadas = useMemo(() => {
 if (!proveedorActual) return [];
 
 return requerimientos.filter((r) => {
-const mismaCategoria =
-(r.categoria || "").toLowerCase() ===
-(proveedorActual.categoria || "").toLowerCase();
+const sectorRequerimiento = (r.sector || "").trim().toLowerCase();
+const sectorProveedor = (proveedorActual.sector || "").trim().toLowerCase();
 
-const mismoSector =
-(r.sector || "").toLowerCase() ===
-(proveedorActual.sector || "").toLowerCase();
-
-return mismaCategoria || mismoSector;
+return sectorRequerimiento === sectorProveedor;
 });
 }, [proveedorActual, requerimientos]);
-
-const solicitudesDirigidas = useMemo(() => {
-if (!proveedorActual) return [];
-
-return cotizaciones.filter((c) => {
-return (c.estado || "").toLowerCase() === "solicitada";
-});
-}, [proveedorActual, cotizaciones]);
 
 const cardStyle = {
 backgroundColor: "white",
 borderRadius: "16px",
 padding: "20px",
 boxShadow: "0 4px 14px rgba(0,0,0,0.08)"
+};
+
+const accesoStyle = {
+display: "inline-block",
+backgroundColor: "#1f3552",
+color: "white",
+textDecoration: "none",
+padding: "12px 14px",
+borderRadius: "10px",
+fontWeight: "bold",
+textAlign: "center"
 };
 
 if (cargando) {
@@ -152,12 +157,24 @@ if (!proveedorActual) {
 return (
 <div style={cardStyle}>
 <h2>Proveedor no vinculado</h2>
-<p>
-Tu correo inició sesión, pero todavía no encontramos un proveedor aprobado con ese email.
-</p>
-<p>
-Para esta primera versión, el correo del login debe coincidir con el correo del proveedor registrado en PROCURO.
-</p>
+<p>No encontramos un proveedor registrado con este correo.</p>
+<p>Completa tu perfil desde Mi perfil proveedor.</p>
+
+<Link
+to="/registro-proveedor"
+style={{
+display: "inline-block",
+marginTop: "12px",
+backgroundColor: "#1f3552",
+color: "white",
+textDecoration: "none",
+padding: "10px 14px",
+borderRadius: "8px",
+fontWeight: "bold"
+}}
+>
+Ir a mi perfil proveedor
+</Link>
 </div>
 );
 }
@@ -165,29 +182,39 @@ Para esta primera versión, el correo del login debe coincidir con el correo del
 return (
 <div>
 <div style={{ ...cardStyle, marginBottom: "20px" }}>
-<h2>Panel del proveedor</h2>
+<h2>Panel proveedor</h2>
 <p><strong>Proveedor activo:</strong> {proveedorActual.nombre}</p>
 <p><strong>Email:</strong> {usuario.email}</p>
-<p>
-Este panel ya muestra solo la información del proveedor autenticado.
-</p>
+<p>Este es tu centro de control como proveedor.</p>
 
 <div
 style={{
-display: "flex",
-gap: "10px",
-flexWrap: "wrap",
-marginTop: "14px"
+display: "grid",
+gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+gap: "12px",
+marginTop: "16px"
 }}
 >
+<Link to="/oportunidades" style={accesoStyle}>
+Oportunidades
+</Link>
+
+<Link to="/cotizaciones" style={accesoStyle}>
+Mis cotizaciones
+</Link>
+
+<Link to="/registro-proveedor" style={accesoStyle}>
+Mi perfil proveedor
+</Link>
+
 <button
 onClick={cerrarSesion}
 style={{
 backgroundColor: "#8b1e1e",
 color: "white",
 border: "none",
-padding: "10px 14px",
-borderRadius: "8px",
+padding: "12px 14px",
+borderRadius: "10px",
 cursor: "pointer",
 fontWeight: "bold"
 }}
@@ -210,15 +237,7 @@ marginBottom: "20px"
 <p style={{ fontSize: "32px", fontWeight: "bold", margin: "10px 0" }}>
 {oportunidadesRelacionadas.length}
 </p>
-<p>Coinciden por sector o categoría</p>
-</div>
-
-<div style={cardStyle}>
-<h3>Solicitudes dirigidas</h3>
-<p style={{ fontSize: "32px", fontWeight: "bold", margin: "10px 0" }}>
-{solicitudesDirigidas.length}
-</p>
-<p>Solicitudes directas desde el directorio</p>
+<p>Coinciden por sector</p>
 </div>
 
 <div style={cardStyle}>
@@ -227,6 +246,13 @@ marginBottom: "20px"
 {cotizaciones.length}
 </p>
 <p>Registros asociados a este proveedor</p>
+</div>
+
+<div style={cardStyle}>
+<h3>Mi sector activo</h3>
+<p style={{ fontSize: "20px", fontWeight: "bold", margin: "10px 0" }}>
+{proveedorActual.sector || "No especificado"}
+</p>
 </div>
 </div>
 
@@ -270,41 +296,6 @@ Enviar cotización
 ))
 ) : (
 <p>No hay oportunidades relacionadas para este proveedor.</p>
-)}
-</div>
-
-<div style={{ ...cardStyle, marginBottom: "20px" }}>
-<h3>Solicitudes dirigidas</h3>
-
-{solicitudesDirigidas.length > 0 ? (
-solicitudesDirigidas.slice(0, 5).map((c) => (
-<div
-key={c.id}
-style={{
-borderBottom: "1px solid #eee",
-padding: "12px 0"
-}}
->
-<p style={{ margin: 0, fontWeight: "bold" }}>
-{c.requerimiento_nombre || "Sin requerimiento"}
-</p>
-<p style={{ margin: "4px 0" }}>
-Estado: {c.estado}
-</p>
-{c.valor_referencial ? (
-<p style={{ margin: "4px 0" }}>
-Valor referencial: {c.valor_referencial}
-</p>
-) : null}
-{c.mensaje ? (
-<p style={{ margin: "4px 0", color: "#666" }}>
-{c.mensaje}
-</p>
-) : null}
-</div>
-))
-) : (
-<p>No hay solicitudes directas para este proveedor.</p>
 )}
 </div>
 

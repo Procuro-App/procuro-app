@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 function AccesoProveedor() {
 const navigate = useNavigate();
@@ -11,14 +11,17 @@ const [password, setPassword] = useState("");
 const [usuario, setUsuario] = useState(null);
 const [cargando, setCargando] = useState(false);
 
-const RECOVERY_REDIRECT_URL = "https://procuro-app.vercel.app/recuperar-password";
+const RECOVERY_REDIRECT_URL =
+"https://procuro-app.vercel.app/recuperar-password";
 
 useEffect(() => {
 verificarSesion();
 
-const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+const { data: listener } = supabase.auth.onAuthStateChange(
+(_event, session) => {
 setUsuario(session?.user || null);
-});
+}
+);
 
 return () => {
 listener?.subscription?.unsubscribe();
@@ -29,7 +32,7 @@ const verificarSesion = async () => {
 const { data, error } = await supabase.auth.getUser();
 
 if (error) {
-console.error("Error verificando sesión:", error);
+console.error("Error verificando sesión proveedor:", error);
 return;
 }
 
@@ -53,14 +56,16 @@ password
 });
 
 if (error) {
-console.error("Error creando cuenta:", error);
+console.error("Error creando cuenta proveedor:", error);
 alert(`No fue posible crear la cuenta: ${error.message}`);
 return;
 }
 
-alert("Cuenta creada correctamente. Revisa tu correo para confirmarla.");
+alert(
+"Cuenta de proveedor creada correctamente. Revisa tu correo para confirmarla."
+);
 } catch (err) {
-console.error("Error inesperado registrando:", err);
+console.error("Error inesperado registrando proveedor:", err);
 alert("Ocurrió un error al registrarte");
 } finally {
 setCargando(false);
@@ -84,15 +89,16 @@ password
 });
 
 if (error) {
-console.error("Error iniciando sesión:", error);
+console.error("Error iniciando sesión proveedor:", error);
 alert(`No fue posible iniciar sesión: ${error.message}`);
 return;
 }
 
+localStorage.setItem("rol", "proveedor");
 alert("Sesión iniciada correctamente");
 navigate("/panel-proveedor");
 } catch (err) {
-console.error("Error inesperado iniciando sesión:", err);
+console.error("Error inesperado iniciando sesión proveedor:", err);
 alert("Ocurrió un error al iniciar sesión");
 } finally {
 setCargando(false);
@@ -110,36 +116,31 @@ setCargando(true);
 
 const correoLimpio = email.trim().toLowerCase();
 
-const { error } = await supabase.auth.resetPasswordForEmail(correoLimpio, {
+const { error } = await supabase.auth.resetPasswordForEmail(
+correoLimpio,
+{
 redirectTo: RECOVERY_REDIRECT_URL
-});
+}
+);
 
 if (error) {
-console.error("Error enviando recuperación:", error);
+console.error("Error enviando recuperación proveedor:", error);
 alert(`No fue posible enviar el correo de recuperación: ${error.message}`);
 return;
 }
 
 alert("Te enviamos un correo para recuperar tu contraseña.");
 } catch (err) {
-console.error("Error inesperado recuperando contraseña:", err);
+console.error("Error inesperado recuperando contraseña proveedor:", err);
 alert("Ocurrió un error al solicitar la recuperación");
 } finally {
 setCargando(false);
 }
 };
 
-const cerrarSesion = async () => {
-const { error } = await supabase.auth.signOut();
-
-if (error) {
-console.error("Error cerrando sesión:", error);
-alert("No fue posible cerrar sesión");
-return;
-}
-
-alert("Sesión cerrada");
-setUsuario(null);
+const irAPanel = () => {
+localStorage.setItem("rol", "proveedor");
+navigate("/panel-proveedor");
 };
 
 return (
@@ -155,46 +156,28 @@ boxShadow: "0 4px 14px rgba(0,0,0,0.08)"
 
 {usuario ? (
 <>
-<p><strong>Sesión activa:</strong> {usuario.email}</p>
+<p>
+<strong>Sesión activa:</strong> {usuario.email}
+</p>
+<p style={{ color: "#555", marginTop: "6px" }}>
+Tu sesión ya está activa. Entra a tu panel para gestionar tu cuenta.
+</p>
 
-<div
+<button
+onClick={irAPanel}
 style={{
-display: "flex",
-gap: "10px",
-flexWrap: "wrap",
+backgroundColor: "#1f3552",
+color: "white",
+border: "none",
+padding: "12px 18px",
+borderRadius: "10px",
+cursor: "pointer",
+fontWeight: "bold",
 marginTop: "12px"
 }}
 >
-<Link
-to="/panel-proveedor"
-style={{
-display: "inline-block",
-backgroundColor: "#1f3552",
-color: "white",
-textDecoration: "none",
-padding: "10px 14px",
-borderRadius: "8px",
-fontWeight: "bold"
-}}
->
 Ir a mi panel
-</Link>
-
-<button
-onClick={cerrarSesion}
-style={{
-backgroundColor: "#8b1e1e",
-color: "white",
-border: "none",
-padding: "10px 14px",
-borderRadius: "8px",
-cursor: "pointer",
-fontWeight: "bold"
-}}
->
-Cerrar sesión
 </button>
-</div>
 </>
 ) : (
 <>

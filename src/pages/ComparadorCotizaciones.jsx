@@ -1,42 +1,76 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 
 function ComparadorCotizaciones() {
+const navigate = useNavigate();
+
+const [usuario, setUsuario] = useState(null);
 const [requerimientos, setRequerimientos] = useState([]);
 const [cotizaciones, setCotizaciones] = useState([]);
 const [requerimientoSeleccionado, setRequerimientoSeleccionado] = useState("");
 const [cargando, setCargando] = useState(true);
 
 useEffect(() => {
-cargarDatos();
+cargarDatosComprador();
 }, []);
 
-const cargarDatos = async () => {
+const cargarDatosComprador = async () => {
 try {
 setCargando(true);
+
+const { data: userData, error: userError } = await supabase.auth.getUser();
+
+if (userError) {
+console.error("Error obteniendo comprador autenticado:", userError);
+setCargando(false);
+return;
+}
+
+const user = userData?.user || null;
+setUsuario(user);
+
+if (!user?.id) {
+setCargando(false);
+return;
+}
 
 const { data: requerimientosData, error: requerimientosError } = await supabase
 .from("requerimientos")
 .select("*")
-.order("created_at", { ascending: false });
-
-const { data: cotizacionesData, error: cotizacionesError } = await supabase
-.from("cotizaciones")
-.select("*")
+.eq("comprador_user_id", user.id)
 .order("created_at", { ascending: false });
 
 if (requerimientosError) {
 console.error("Error cargando requerimientos:", requerimientosError);
+setCargando(false);
+return;
 }
 
-if (cotizacionesError) {
-console.error("Error cargando cotizaciones:", cotizacionesError);
+const nombresRequerimientos = (requerimientosData || [])
+.map((r) => r.nombre_requerimiento)
+.filter(Boolean);
+
+let cotizacionesData = [];
+
+if (nombresRequerimientos.length > 0) {
+const { data, error } = await supabase
+.from("cotizaciones")
+.select("*")
+.in("requerimiento_nombre", nombresRequerimientos)
+.order("created_at", { ascending: false });
+
+if (error) {
+console.error("Error cargando cotizaciones:", error);
+} else {
+cotizacionesData = data || [];
+}
 }
 
 setRequerimientos(requerimientosData || []);
-setCotizaciones(cotizacionesData || []);
+setCotizaciones(cotizacionesData);
 } catch (error) {
-console.error("Error general cargando comparador:", error);
+console.error("Error general cargando comparativo:", error);
 } finally {
 setCargando(false);
 }
@@ -53,7 +87,10 @@ return cotizaciones.filter(
 const convertirANumero = (valor) => {
 if (valor === null || valor === undefined || valor === "") return null;
 
-const limpio = String(valor).replace(/[^\d.,]/g, "").replace(/,/g, "");
+const limpio = String(valor)
+.replace(/[^\d.,]/g, "")
+.replace(/,/g, "");
+
 const numero = Number(limpio);
 
 return Number.isNaN(numero) ? null : numero;
@@ -134,7 +171,32 @@ boxShadow: "0 4px 14px rgba(0,0,0,0.08)"
 if (cargando) {
 return (
 <div style={cardStyle}>
-<p>Cargando comparador de cotizaciones...</p>
+<p>Cargando comparativo de cotizaciones...</p>
+</div>
+);
+}
+
+if (!usuario) {
+return (
+<div style={cardStyle}>
+<h2>Comparativo de cotizaciones</h2>
+<p>Debes iniciar sesión como comprador para ver tu comparativo.</p>
+
+<Link
+to="/acceso-comprador"
+style={{
+display: "inline-block",
+marginTop: "12px",
+backgroundColor: "#1f3552",
+color: "white",
+textDecoration: "none",
+padding: "10px 14px",
+borderRadius: "8px",
+fontWeight: "bold"
+}}
+>
+Ir a acceso comprador
+</Link>
 </div>
 );
 }
@@ -142,9 +204,24 @@ return (
 return (
 <div>
 <div style={{ ...cardStyle, marginBottom: "20px" }}>
-<h2>Comparador de cotizaciones</h2>
+<button
+onClick={() => navigate("/panel-comprador")}
+style={{
+marginBottom: "12px",
+backgroundColor: "#e5e7eb",
+border: "none",
+padding: "8px 12px",
+borderRadius: "8px",
+cursor: "pointer",
+fontWeight: "bold"
+}}
+>
+← Volver al dashboard
+</button>
+
+<h2>Comparativo de cotizaciones</h2>
 <p>
-Selecciona un requerimiento para revisar y comparar las cotizaciones recibidas.
+Selecciona uno de tus requerimientos para comparar las cotizaciones recibidas.
 </p>
 
 <select
@@ -169,13 +246,14 @@ marginTop: "12px"
 
 {!requerimientoSeleccionado ? (
 <div style={cardStyle}>
-<p>Selecciona un requerimiento para visualizar y comparar cotizaciones.</p>
+<p>Selecciona un requerimiento para visualizar el comparativo.</p>
 </div>
 ) : (
 <>
 <div style={{ ...cardStyle, marginBottom: "20px" }}>
-<p style={{ marginBottom: "0", color: "#555" }}>
-Cotizaciones encontradas: <strong>{cotizacionesConAnalisis.length}</strong>
+<p style={{ marginBottom: 0, color: "#555" }}>
+Cotizaciones encontradas:{" "}
+<strong>{cotizacionesConAnalisis.length}</strong>
 </p>
 </div>
 
@@ -215,7 +293,7 @@ fontWeight: "bold"
 </h3>
 
 <p><strong>Requerimiento:</strong> {c.requerimiento_nombre}</p>
-<p><strong>Estado:</strong> {c.estado}</p>
+<p><strong>Estado:</strong> {c.estado || "No especificado"}</p>
 {c.contacto ? <p><strong>Contacto:</strong> {c.contacto}</p> : null}
 {c.email ? <p><strong>Email:</strong> {c.email}</p> : null}
 {c.telefono ? <p><strong>Teléfono:</strong> {c.telefono}</p> : null}
