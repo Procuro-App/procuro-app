@@ -19,6 +19,9 @@ const proveedorIdParam = searchParams.get("proveedor_id");
 const proveedorEmailParam = searchParams.get("proveedor_email");
 const proveedorNombreParam = searchParams.get("proveedor_nombre");
 
+const esMovil =
+typeof window !== "undefined" ? window.innerWidth <= 768 : false;
+
 useEffect(() => {
 iniciar();
 }, []);
@@ -40,7 +43,6 @@ const { data, error } = await supabase.auth.getUser();
 
 if (error) {
 console.error("Error obteniendo usuario autenticado:", error);
-setCargando(false);
 return;
 }
 
@@ -49,6 +51,75 @@ setUsuario(data?.user || null);
 console.error("Error iniciando chat:", error);
 } finally {
 setCargando(false);
+}
+};
+
+const enriquecerConversacionesConNombres = async (lista) => {
+try {
+if (!lista || lista.length === 0) return [];
+
+const proveedorIds = [
+...new Set(lista.map((c) => c.proveedor_id).filter(Boolean)),
+];
+
+const compradorEmails = [
+...new Set(lista.map((c) => c.comprador_email).filter(Boolean)),
+];
+
+let mapaProveedores = {};
+let mapaCompradores = {};
+
+if (proveedorIds.length > 0) {
+const { data: proveedoresData, error: proveedoresError } = await supabase
+.from("proveedores")
+.select("id, nombre, email, contacto")
+.in("id", proveedorIds);
+
+if (proveedoresError) {
+console.error("Error cargando nombres de proveedores:", proveedoresError);
+} else {
+mapaProveedores = (proveedoresData || []).reduce((acc, item) => {
+acc[item.id] = item;
+return acc;
+}, {});
+}
+}
+
+if (compradorEmails.length > 0) {
+const { data: compradoresData, error: compradoresError } = await supabase
+.from("compradores")
+.select("email, nombre, contacto")
+.in("email", compradorEmails);
+
+if (compradoresError) {
+console.error("Error cargando nombres de compradores:", compradoresError);
+} else {
+mapaCompradores = (compradoresData || []).reduce((acc, item) => {
+acc[item.email] = item;
+return acc;
+}, {});
+}
+}
+
+return lista.map((conv) => {
+const proveedorInfo = mapaProveedores[conv.proveedor_id];
+const compradorInfo = mapaCompradores[conv.comprador_email];
+
+return {
+...conv,
+proveedor_nombre:
+proveedorInfo?.nombre ||
+proveedorInfo?.contacto ||
+conv.proveedor_email,
+comprador_nombre:
+compradorInfo?.nombre ||
+compradorInfo?.contacto ||
+conv.comprador_email,
+};
+});
+} catch (error) {
+console.error("Error enriqueciendo conversaciones:", error);
+return lista;
 }
 };
 
@@ -105,30 +176,49 @@ proveedor_id: proveedorIdParam,
 .single();
 
 if (errorNuevaConversacion) {
-console.error(
-"Error creando conversación:",
-errorNuevaConversacion
-);
+console.error("Error creando conversación:", errorNuevaConversacion);
+
+const { data: reconsulta, error: errorReconsulta } = await supabase
+.from("conversaciones")
+.select("*")
+.eq("comprador_email", usuario.email)
+.eq("proveedor_email", proveedorEmailParam)
+.maybeSingle();
+
+if (!errorReconsulta && reconsulta) {
+conversacionExistente = reconsulta;
+}
 } else if (nuevaConversacion) {
 conversacionesData = [nuevaConversacion, ...conversacionesData];
 conversacionExistente = nuevaConversacion;
 }
 }
 
-setConversaciones(conversacionesData);
+const conversacionesEnriquecidas =
+await enriquecerConversacionesConNombres(conversacionesData);
+
+setConversaciones(conversacionesEnriquecidas);
 
 if (conversacionExistente) {
-setConversacionActiva(conversacionExistente);
+const activaEnriquecida =
+conversacionesEnriquecidas.find(
+(c) => c.id === conversacionExistente.id
+) || conversacionExistente;
+
+setConversacionActiva(activaEnriquecida);
 await cargarMensajes(conversacionExistente.id);
 return;
 }
 }
 
-setConversaciones(conversacionesData);
+const conversacionesEnriquecidas =
+await enriquecerConversacionesConNombres(conversacionesData);
 
-if (conversacionesData.length > 0) {
-setConversacionActiva(conversacionesData[0]);
-await cargarMensajes(conversacionesData[0].id);
+setConversaciones(conversacionesEnriquecidas);
+
+if (conversacionesEnriquecidas.length > 0) {
+setConversacionActiva(conversacionesEnriquecidas[0]);
+await cargarMensajes(conversacionesEnriquecidas[0].id);
 } else {
 setConversacionActiva(null);
 setMensajes([]);
@@ -210,16 +300,20 @@ const tituloConversacion = useMemo(() => {
 if (!conversacionActiva) return "Sin conversación activa";
 
 if (rol === "proveedor") {
-return conversacionActiva.comprador_email;
+return conversacionActiva.comprador_nombre || conversacionActiva.comprador_email;
 }
 
-return proveedorNombreParam || conversacionActiva.proveedor_email;
+return (
+proveedorNombreParam ||
+conversacionActiva.proveedor_nombre ||
+conversacionActiva.proveedor_email
+);
 }, [conversacionActiva, rol, proveedorNombreParam]);
 
 const cardStyle = {
 backgroundColor: "white",
 borderRadius: "18px",
-padding: "24px",
+padding: esMovil ? "18px" : "24px",
 boxShadow: "0 8px 22px rgba(0,0,0,0.08)",
 borderLeft: "6px solid #3b82f6",
 borderRight: "6px solid #f59e0b",
@@ -285,7 +379,7 @@ return (
 <div
 style={{
 display: "grid",
-gridTemplateColumns: "300px 1fr",
+gridTemplateColumns: esMovil ? "1fr" : "300px 1fr",
 gap: "18px",
 }}
 >
@@ -322,8 +416,8 @@ cursor: "pointer",
 >
 <strong style={{ display: "block", color: "#1f3552" }}>
 {rol === "proveedor"
-? conv.comprador_email
-: conv.proveedor_email}
+? conv.comprador_nombre || conv.comprador_email
+: conv.proveedor_nombre || conv.proveedor_email}
 </strong>
 <span style={{ color: "#6b7280", fontSize: "13px" }}>
 {new Date(conv.created_at).toLocaleString()}
@@ -337,14 +431,14 @@ cursor: "pointer",
 <div style={cardStyle}>
 <h2 style={{ marginTop: 0, color: "#1f3552" }}>Chat</h2>
 <p style={{ color: "#6b7280", marginBottom: "16px" }}>
-Conversación con: <strong>{tituloConversacion}</strong>
+Chat con: <strong>{tituloConversacion}</strong>
 </p>
 
 <div
 style={{
 border: "1px solid #d1d5db",
 borderRadius: "12px",
-height: "420px",
+height: esMovil ? "320px" : "420px",
 overflowY: "auto",
 padding: "12px",
 marginBottom: "14px",
@@ -380,7 +474,7 @@ background: esMio
 ? "linear-gradient(135deg, #1f3552, #2563eb)"
 : "#e5e7eb",
 color: esMio ? "white" : "#111827",
-maxWidth: "75%",
+maxWidth: esMovil ? "90%" : "75%",
 wordBreak: "break-word",
 }}
 >
@@ -395,8 +489,8 @@ wordBreak: "break-word",
 <div
 style={{
 display: "flex",
+flexDirection: esMovil ? "column" : "row",
 gap: "10px",
-flexWrap: "wrap",
 }}
 >
 <input
@@ -407,7 +501,7 @@ placeholder="Escribe un mensaje..."
 disabled={!conversacionActiva}
 style={{
 flex: 1,
-minWidth: "220px",
+minWidth: 0,
 padding: "12px",
 borderRadius: "10px",
 border: "1px solid #d1d5db",
