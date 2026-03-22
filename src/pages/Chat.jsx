@@ -30,7 +30,7 @@ useEffect(() => {
 if (usuario?.email) {
 cargarConversaciones();
 }
-}, [usuario, proveedorEmailParam, proveedorIdParam]);
+}, [usuario]);
 
 const iniciar = async () => {
 try {
@@ -148,73 +148,45 @@ console.error("Error cargando conversaciones:", error);
 return;
 }
 
-let conversacionesData = data || [];
+const conversacionesEnriquecidas = await enriquecerConversacionesConNombres(
+data || []
+);
 
+setConversaciones(conversacionesEnriquecidas);
+
+// Si el comprador vino desde "Contactar proveedor", intenta abrir una existente,
+// pero NO crea una nueva todavía.
 if (
 rolGuardado === "comprador" &&
 proveedorEmailParam &&
 proveedorIdParam
 ) {
-let conversacionExistente = conversacionesData.find(
+const existente = conversacionesEnriquecidas.find(
 (c) =>
 c.comprador_email === usuario.email &&
 c.proveedor_email === proveedorEmailParam
 );
 
-if (!conversacionExistente) {
-const { data: nuevaConversacion, error: errorNuevaConversacion } =
-await supabase
-.from("conversaciones")
-.insert([
-{
+if (existente) {
+setConversacionActiva(existente);
+await cargarMensajes(existente.id);
+return;
+}
+
+// No existe todavía: dejamos el chat preparado, pero vacío,
+// y se creará al enviar el primer mensaje.
+setConversacionActiva({
+id: null,
 comprador_email: usuario.email,
 proveedor_email: proveedorEmailParam,
 proveedor_id: proveedorIdParam,
-},
-])
-.select()
-.single();
-
-if (errorNuevaConversacion) {
-console.error("Error creando conversación:", errorNuevaConversacion);
-
-const { data: reconsulta, error: errorReconsulta } = await supabase
-.from("conversaciones")
-.select("*")
-.eq("comprador_email", usuario.email)
-.eq("proveedor_email", proveedorEmailParam)
-.maybeSingle();
-
-if (!errorReconsulta && reconsulta) {
-conversacionExistente = reconsulta;
-}
-} else if (nuevaConversacion) {
-conversacionesData = [nuevaConversacion, ...conversacionesData];
-conversacionExistente = nuevaConversacion;
-}
-}
-
-const conversacionesEnriquecidas =
-await enriquecerConversacionesConNombres(conversacionesData);
-
-setConversaciones(conversacionesEnriquecidas);
-
-if (conversacionExistente) {
-const activaEnriquecida =
-conversacionesEnriquecidas.find(
-(c) => c.id === conversacionExistente.id
-) || conversacionExistente;
-
-setConversacionActiva(activaEnriquecida);
-await cargarMensajes(conversacionExistente.id);
+proveedor_nombre: proveedorNombreParam || proveedorEmailParam,
+comprador_nombre: usuario.email,
+creada_virtualmente: true,
+});
+setMensajes([]);
 return;
 }
-}
-
-const conversacionesEnriquecidas =
-await enriquecerConversacionesConNombres(conversacionesData);
-
-setConversaciones(conversacionesEnriquecidas);
 
 if (conversacionesEnriquecidas.length > 0) {
 setConversacionActiva(conversacionesEnriquecidas[0]);
@@ -230,6 +202,11 @@ console.error("Error general cargando conversaciones:", error);
 
 const cargarMensajes = async (conversacionId) => {
 try {
+if (!conversacionId) {
+setMensajes([]);
+return;
+}
+
 const { data, error } = await supabase
 .from("mensajes")
 .select("*")
@@ -252,15 +229,108 @@ setConversacionActiva(conversacion);
 await cargarMensajes(conversacion.id);
 };
 
+const crearOReutilizarConversacionSiHaceFalta = async () => {
+if (!usuario?.email || !conversacionActiva) return null;
+
+// Si ya existe, úsala
+if (conversacionActiva.id) {
+return conversacionActiva.id;
+}
+
+// Busca si ya existe en BD antes de crear
+const { data: existente, error: errorBusqueda } = await supabase
+.from("conversaciones")
+.select("*")
+.eq("comprador_email", usuario.email)
+.eq("proveedor_email", conversacionActiva.proveedor_email)
+.maybeSingle();
+
+if (errorBusqueda) {
+console.error("Error buscando conversación existente:", errorBusqueda);
+return null;
+}
+
+if (existente) {
+const conversacionesActualizadas = await enriquecerConversacionesConNombres(
+[existente, ...conversaciones.filter((c) => c.id !== existente.id)]
+);
+
+setConversaciones(conversacionesActualizadas);
+const activa =
+conversacionesActualizadas.find((c) => c.id === existente.id) || existente;
+setConversacionActiva(activa);
+return existente.id;
+}
+
+// Si no existe, créala recién aquí
+const { data: nuevaConversacion, error: errorCreacion } = await supabase
+.from("conversaciones")
+.insert([
+{
+comprador_email: usuario.email,
+proveedor_email: conversacionActiva.proveedor_email,
+proveedor_id: conversacionActiva.proveedor_id,
+},
+])
+.select()
+.single();
+
+if (errorCreacion) {
+console.error("Error creando conversación:", errorCreacion);
+
+// Si la unique ya la frenó porque alguien la creó justo antes, reconsulta
+const { data: reconsulta, error: errorReconsulta } = await supabase
+.from("conversaciones")
+.select("*")
+.eq("comprador_email", usuario.email)
+.eq("proveedor_email", conversacionActiva.proveedor_email)
+.maybeSingle();
+
+if (errorReconsulta || !reconsulta) {
+console.error("Error reconsultando conversación:", errorReconsulta);
+return null;
+}
+
+const conversacionesActualizadas = await enriquecerConversacionesConNombres(
+[reconsulta, ...conversaciones.filter((c) => c.id !== reconsulta.id)]
+);
+
+setConversaciones(conversacionesActualizadas);
+const activa =
+conversacionesActualizadas.find((c) => c.id === reconsulta.id) || reconsulta;
+setConversacionActiva(activa);
+return reconsulta.id;
+}
+
+const conversacionesActualizadas = await enriquecerConversacionesConNombres(
+[nuevaConversacion, ...conversaciones]
+);
+
+setConversaciones(conversacionesActualizadas);
+const activa =
+conversacionesActualizadas.find((c) => c.id === nuevaConversacion.id) ||
+nuevaConversacion;
+setConversacionActiva(activa);
+
+return nuevaConversacion.id;
+};
+
 const enviarMensaje = async () => {
 if (!nuevoMensaje.trim() || !conversacionActiva || !usuario?.email) return;
 
 try {
 setEnviando(true);
 
+const conversacionId = await crearOReutilizarConversacionSiHaceFalta();
+
+if (!conversacionId) {
+alert("No se pudo crear o recuperar la conversación");
+return;
+}
+
 const { error } = await supabase.from("mensajes").insert([
 {
-conversacion_id: conversacionActiva.id,
+conversacion_id: conversacionId,
 remitente_email: usuario.email,
 mensaje: nuevoMensaje.trim(),
 },
@@ -273,7 +343,8 @@ return;
 }
 
 setNuevoMensaje("");
-await cargarMensajes(conversacionActiva.id);
+await cargarMensajes(conversacionId);
+await cargarConversaciones();
 } catch (error) {
 console.error("Error general enviando mensaje:", error);
 alert("Ocurrió un error al enviar el mensaje");
