@@ -12,6 +12,7 @@ const [conversaciones, setConversaciones] = useState([]);
 const [conversacionActiva, setConversacionActiva] = useState(null);
 const [mensajes, setMensajes] = useState([]);
 const [nuevoMensaje, setNuevoMensaje] = useState("");
+const [archivoAdjunto, setArchivoAdjunto] = useState(null);
 const [cargando, setCargando] = useState(true);
 const [enviando, setEnviando] = useState(false);
 
@@ -154,8 +155,6 @@ data || []
 
 setConversaciones(conversacionesEnriquecidas);
 
-// Si el comprador vino desde "Contactar proveedor", intenta abrir una existente,
-// pero NO crea una nueva todavía.
 if (
 rolGuardado === "comprador" &&
 proveedorEmailParam &&
@@ -173,8 +172,6 @@ await cargarMensajes(existente.id);
 return;
 }
 
-// No existe todavía: dejamos el chat preparado, pero vacío,
-// y se creará al enviar el primer mensaje.
 setConversacionActiva({
 id: null,
 comprador_email: usuario.email,
@@ -232,12 +229,10 @@ await cargarMensajes(conversacion.id);
 const crearOReutilizarConversacionSiHaceFalta = async () => {
 if (!usuario?.email || !conversacionActiva) return null;
 
-// Si ya existe, úsala
 if (conversacionActiva.id) {
 return conversacionActiva.id;
 }
 
-// Busca si ya existe en BD antes de crear
 const { data: existente, error: errorBusqueda } = await supabase
 .from("conversaciones")
 .select("*")
@@ -262,7 +257,6 @@ setConversacionActiva(activa);
 return existente.id;
 }
 
-// Si no existe, créala recién aquí
 const { data: nuevaConversacion, error: errorCreacion } = await supabase
 .from("conversaciones")
 .insert([
@@ -278,7 +272,6 @@ proveedor_id: conversacionActiva.proveedor_id,
 if (errorCreacion) {
 console.error("Error creando conversación:", errorCreacion);
 
-// Si la unique ya la frenó porque alguien la creó justo antes, reconsulta
 const { data: reconsulta, error: errorReconsulta } = await supabase
 .from("conversaciones")
 .select("*")
@@ -315,8 +308,42 @@ setConversacionActiva(activa);
 return nuevaConversacion.id;
 };
 
+const subirArchivoChat = async (archivo, conversacionId) => {
+const extension = archivo.name.split(".").pop();
+const nombreSeguro = `${conversacionId}-${Date.now()}-${Math.random()
+.toString(36)
+.slice(2)}.${extension}`;
+
+const ruta = `conversaciones/${conversacionId}/${nombreSeguro}`;
+
+const { error } = await supabase.storage
+.from("chat-archivos")
+.upload(ruta, archivo, {
+cacheControl: "3600",
+upsert: false,
+});
+
+if (error) {
+console.error("Error subiendo archivo del chat:", error);
+throw error;
+}
+
+const { data } = supabase.storage.from("chat-archivos").getPublicUrl(ruta);
+
+return {
+archivo_url: data?.publicUrl || "",
+archivo_nombre: archivo.name,
+};
+};
+
 const enviarMensaje = async () => {
-if (!nuevoMensaje.trim() || !conversacionActiva || !usuario?.email) return;
+const texto = nuevoMensaje.trim();
+
+if (!texto && !archivoAdjunto) {
+return;
+}
+
+if (!conversacionActiva || !usuario?.email) return;
 
 try {
 setEnviando(true);
@@ -328,11 +355,22 @@ alert("No se pudo crear o recuperar la conversación");
 return;
 }
 
+let archivoPayload = {
+archivo_url: null,
+archivo_nombre: null,
+};
+
+if (archivoAdjunto) {
+archivoPayload = await subirArchivoChat(archivoAdjunto, conversacionId);
+}
+
 const { error } = await supabase.from("mensajes").insert([
 {
 conversacion_id: conversacionId,
 remitente_email: usuario.email,
-mensaje: nuevoMensaje.trim(),
+mensaje: texto || (archivoAdjunto ? "Adjunto enviado" : ""),
+archivo_url: archivoPayload.archivo_url,
+archivo_nombre: archivoPayload.archivo_nombre,
 },
 ]);
 
@@ -343,11 +381,12 @@ return;
 }
 
 setNuevoMensaje("");
+setArchivoAdjunto(null);
 await cargarMensajes(conversacionId);
 await cargarConversaciones();
 } catch (error) {
 console.error("Error general enviando mensaje:", error);
-alert("Ocurrió un error al enviar el mensaje");
+alert("Ocurrió un error al enviar el mensaje o archivo");
 } finally {
 setEnviando(false);
 }
@@ -536,7 +575,7 @@ textAlign: esMio ? "right" : "left",
 marginBottom: "10px",
 }}
 >
-<span
+<div
 style={{
 display: "inline-block",
 padding: "10px 14px",
@@ -549,8 +588,25 @@ maxWidth: esMovil ? "90%" : "75%",
 wordBreak: "break-word",
 }}
 >
-{msg.mensaje}
-</span>
+{msg.mensaje ? <div>{msg.mensaje}</div> : null}
+
+{msg.archivo_url ? (
+<div style={{ marginTop: msg.mensaje ? "8px" : 0 }}>
+<a
+href={msg.archivo_url}
+target="_blank"
+rel="noreferrer"
+style={{
+color: esMio ? "white" : "#1d4ed8",
+fontWeight: "bold",
+textDecoration: "underline",
+}}
+>
+{msg.archivo_nombre || "Ver archivo"}
+</a>
+</div>
+) : null}
+</div>
 </div>
 );
 })
@@ -562,6 +618,7 @@ style={{
 display: "flex",
 flexDirection: esMovil ? "column" : "row",
 gap: "10px",
+marginBottom: "10px",
 }}
 >
 <input
@@ -595,6 +652,21 @@ opacity: !conversacionActiva || enviando ? 0.7 : 1,
 >
 {enviando ? "Enviando..." : "Enviar"}
 </button>
+</div>
+
+<div>
+<input
+type="file"
+onChange={(e) => setArchivoAdjunto(e.target.files?.[0] || null)}
+disabled={!conversacionActiva}
+style={{ marginBottom: "8px" }}
+/>
+
+{archivoAdjunto ? (
+<p style={{ margin: 0, color: "#6b7280" }}>
+Archivo seleccionado: <strong>{archivoAdjunto.name}</strong>
+</p>
+) : null}
 </div>
 </div>
 </div>
