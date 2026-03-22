@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar";
+
 import Home from "./pages/Home";
 import Proveedores from "./pages/Proveedores";
 import ProveedorPerfil from "./pages/ProveedorPerfil";
@@ -7,44 +8,67 @@ import Requerimientos from "./pages/Requerimientos";
 import Cotizaciones from "./pages/Cotizaciones";
 import ComparadorCotizaciones from "./pages/ComparadorCotizaciones";
 import Oportunidades from "./pages/Oportunidades";
-import PanelProveedor from "./pages/PanelProveedor";
-import PanelComprador from "./pages/PanelComprador";
 import AccesoProveedor from "./pages/AccesoProveedor";
 import AccesoComprador from "./pages/AccesoComprador";
-import RecuperarPassword from "./pages/RecuperarPassword";
-import RecuperarPasswordComprador from "./pages/RecuperarPasswordComprador";
-import EnviarCotizacion from "./pages/EnviarCotizacion";
-import SolicitarProveedor from "./pages/SolicitarProveedor";
 import RegistroProveedor from "./pages/RegistroProveedor";
 import RevisionProveedores from "./pages/RevisionProveedores";
+import PanelProveedor from "./pages/PanelProveedor";
+import PanelComprador from "./pages/PanelComprador";
+import RecuperarPassword from "./pages/RecuperarPassword";
+import RecuperarPasswordComprador from "./pages/RecuperarPasswordComprador";
 import MiPerfilComprador from "./pages/MiPerfilComprador";
+import EnviarCotizacion from "./pages/EnviarCotizacion";
+import Chat from "./pages/Chat";
 
 function App() {
 return (
 <BrowserRouter>
-<div style={{ maxWidth: "1200px", margin: "0 auto", padding: "20px" }}>
+<div
+style={{
+minHeight: "100vh",
+background: "linear-gradient(135deg, #f5f7fa, #e6eef8)",
+padding: "14px"
+}}
+>
+<div
+style={{
+maxWidth: "1200px",
+margin: "0 auto"
+}}
+>
 <Navbar />
 
 <Routes>
 <Route path="/" element={<Home />} />
 <Route path="/proveedores" element={<Proveedores />} />
 <Route path="/proveedor/:id" element={<ProveedorPerfil />} />
+
 <Route path="/requerimientos" element={<Requerimientos />} />
 <Route path="/cotizaciones" element={<Cotizaciones />} />
 <Route path="/comparador-cotizaciones" element={<ComparadorCotizaciones />} />
+<Route path="/enviar-cotizacion" element={<EnviarCotizacion />} />
 <Route path="/oportunidades" element={<Oportunidades />} />
-<Route path="/panel-proveedor" element={<PanelProveedor />} />
-<Route path="/panel-comprador" element={<PanelComprador />} />
+
 <Route path="/acceso-proveedor" element={<AccesoProveedor />} />
 <Route path="/acceso-comprador" element={<AccesoComprador />} />
-<Route path="/recuperar-password" element={<RecuperarPassword />} />
-<Route path="/recuperar-password-comprador" element={<RecuperarPasswordComprador />} />
-<Route path="/enviar-cotizacion/:id" element={<EnviarCotizacion />} />
-<Route path="/solicitar-proveedor" element={<SolicitarProveedor />} />
+
 <Route path="/registro-proveedor" element={<RegistroProveedor />} />
 <Route path="/revision-proveedores" element={<RevisionProveedores />} />
+
+<Route path="/panel-proveedor" element={<PanelProveedor />} />
+<Route path="/panel-comprador" element={<PanelComprador />} />
+
 <Route path="/mi-perfil-comprador" element={<MiPerfilComprador />} />
+
+<Route path="/recuperar-password" element={<RecuperarPassword />} />
+<Route
+path="/recuperar-password-comprador"
+element={<RecuperarPasswordComprador />}
+/>
+
+<Route path="/chat" element={<Chat />} />
 </Routes>
+</div>
 </div>
 </BrowserRouter>
 );

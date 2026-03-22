@@ -1,82 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
-import { supabase } from "../lib/supabase";
 import { Link, useNavigate } from "react-router-dom";
+import { supabase } from "../lib/supabase";
 
 function PanelProveedor() {
 const navigate = useNavigate();
-
-const [usuario, setUsuario] = useState(null);
-const [proveedorActual, setProveedorActual] = useState(null);
-const [requerimientos, setRequerimientos] = useState([]);
-const [cotizaciones, setCotizaciones] = useState([]);
-const [cargando, setCargando] = useState(true);
-
-useEffect(() => {
-cargarPanelPrivado();
-}, []);
-
-const cargarPanelPrivado = async () => {
-try {
-setCargando(true);
-
-const { data: userData } = await supabase.auth.getUser();
-const user = userData?.user || null;
-setUsuario(user);
-
-if (!user?.email) {
-setCargando(false);
-return;
-}
-
-const { data: proveedoresData, error: proveedorError } = await supabase
-.from("proveedores")
-.select("*")
-.eq("email", user.email)
-.order("created_at", { ascending: false })
-.limit(1);
-
-if (proveedorError) {
-console.error("Error cargando proveedor actual:", proveedorError);
-setCargando(false);
-return;
-}
-
-const proveedor = proveedoresData?.[0] || null;
-setProveedorActual(proveedor);
-
-if (!proveedor) {
-setCargando(false);
-return;
-}
-
-const { data: requerimientosData, error: requerimientosError } = await supabase
-.from("requerimientos")
-.select("*")
-.eq("estado", "Abierto")
-.order("created_at", { ascending: false });
-
-const { data: cotizacionesData, error: cotizacionesError } = await supabase
-.from("cotizaciones")
-.select("*")
-.eq("proveedor_nombre", proveedor.nombre)
-.order("created_at", { ascending: false });
-
-if (requerimientosError) {
-console.error("Error cargando requerimientos:", requerimientosError);
-}
-
-if (cotizacionesError) {
-console.error("Error cargando cotizaciones:", cotizacionesError);
-}
-
-setRequerimientos(requerimientosData || []);
-setCotizaciones(cotizacionesData || []);
-} catch (error) {
-console.error("Error general cargando panel proveedor:", error);
-} finally {
-setCargando(false);
-}
-};
 
 const cerrarSesion = async () => {
 const { error } = await supabase.auth.signOut();
@@ -87,253 +13,90 @@ alert("No fue posible cerrar sesión");
 return;
 }
 
+localStorage.removeItem("rol");
 alert("Sesión cerrada");
 navigate("/acceso-proveedor");
 };
 
-const oportunidadesRelacionadas = useMemo(() => {
-if (!proveedorActual) return [];
-
-return requerimientos.filter((r) => {
-const sectorRequerimiento = (r.sector || "").trim().toLowerCase();
-const sectorProveedor = (proveedorActual.sector || "").trim().toLowerCase();
-
-return sectorRequerimiento === sectorProveedor;
-});
-}, [proveedorActual, requerimientos]);
-
 const cardStyle = {
 backgroundColor: "white",
-borderRadius: "16px",
-padding: "20px",
-boxShadow: "0 4px 14px rgba(0,0,0,0.08)"
+borderRadius: "18px",
+padding: "24px",
+boxShadow: "0 8px 22px rgba(0,0,0,0.08)",
+borderLeft: "6px solid #3b82f6",
+borderRight: "6px solid #f59e0b",
 };
 
-const accesoStyle = {
-display: "inline-block",
-backgroundColor: "#1f3552",
-color: "white",
+const buttonStyle = {
 textDecoration: "none",
-padding: "12px 14px",
-borderRadius: "10px",
+background: "linear-gradient(135deg, #1f3552, #2563eb)",
+color: "white",
 fontWeight: "bold",
-textAlign: "center"
+padding: "12px 14px",
+borderRadius: "12px",
+boxShadow: "0 4px 10px rgba(0,0,0,0.12)",
+display: "flex",
+alignItems: "center",
+justifyContent: "center",
+minHeight: "50px",
+textAlign: "center",
+border: "none",
+cursor: "pointer",
+width: "100%",
+boxSizing: "border-box",
 };
 
-if (cargando) {
-return (
-<div style={cardStyle}>
-<p>Cargando panel del proveedor...</p>
-</div>
-);
-}
-
-if (!usuario) {
-return (
-<div style={cardStyle}>
-<h2>Acceso restringido</h2>
-<p>Primero debes iniciar sesión como proveedor para ver tu panel privado.</p>
-
-<Link
-to="/acceso-proveedor"
-style={{
-display: "inline-block",
-marginTop: "12px",
-backgroundColor: "#1f3552",
-color: "white",
-textDecoration: "none",
-padding: "10px 14px",
-borderRadius: "8px",
-fontWeight: "bold"
-}}
->
-Ir a acceso proveedor
-</Link>
-</div>
-);
-}
-
-if (!proveedorActual) {
-return (
-<div style={cardStyle}>
-<h2>Proveedor no vinculado</h2>
-<p>No encontramos un proveedor registrado con este correo.</p>
-<p>Completa tu perfil desde Mi perfil proveedor.</p>
-
-<Link
-to="/registro-proveedor"
-style={{
-display: "inline-block",
-marginTop: "12px",
-backgroundColor: "#1f3552",
-color: "white",
-textDecoration: "none",
-padding: "10px 14px",
-borderRadius: "8px",
-fontWeight: "bold"
-}}
->
-Ir a mi perfil proveedor
-</Link>
-</div>
-);
-}
+const logoutStyle = {
+...buttonStyle,
+background: "linear-gradient(135deg, #8b1e1e, #dc2626)",
+};
 
 return (
 <div>
-<div style={{ ...cardStyle, marginBottom: "20px" }}>
-<h2>Panel proveedor</h2>
-<p><strong>Proveedor activo:</strong> {proveedorActual.nombre}</p>
-<p><strong>Email:</strong> {usuario.email}</p>
-<p>Este es tu centro de control como proveedor.</p>
+<div style={{ ...cardStyle, marginBottom: "22px" }}>
+<h1 style={{ marginTop: 0, color: "#1f3552" }}>Panel proveedor</h1>
+<p style={{ color: "#4b5563", marginBottom: 0 }}>
+Gestiona tus oportunidades, cotizaciones, perfil y conversaciones desde un solo lugar.
+</p>
+</div>
 
 <div
 style={{
 display: "grid",
-gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-gap: "12px",
-marginTop: "16px"
+gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+gap: "14px",
+marginBottom: "24px",
 }}
 >
-<Link to="/oportunidades" style={accesoStyle}>
+<Link to="/oportunidades" style={buttonStyle}>
 Oportunidades
 </Link>
 
-<Link to="/cotizaciones" style={accesoStyle}>
+<Link to="/cotizaciones" style={buttonStyle}>
 Mis cotizaciones
 </Link>
 
-<Link to="/registro-proveedor" style={accesoStyle}>
+<Link to="/registro-proveedor" style={buttonStyle}>
 Mi perfil proveedor
 </Link>
 
-<button
-onClick={cerrarSesion}
-style={{
-backgroundColor: "#8b1e1e",
-color: "white",
-border: "none",
-padding: "12px 14px",
-borderRadius: "10px",
-cursor: "pointer",
-fontWeight: "bold"
-}}
->
+<Link to="/chat" style={buttonStyle}>
+Mis conversaciones
+</Link>
+
+<button onClick={cerrarSesion} style={logoutStyle}>
 Cerrar sesión
 </button>
 </div>
-</div>
-
-<div
-style={{
-display: "grid",
-gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-gap: "16px",
-marginBottom: "20px"
-}}
->
-<div style={cardStyle}>
-<h3>Oportunidades relacionadas</h3>
-<p style={{ fontSize: "32px", fontWeight: "bold", margin: "10px 0" }}>
-{oportunidadesRelacionadas.length}
-</p>
-<p>Coinciden por sector</p>
-</div>
 
 <div style={cardStyle}>
-<h3>Mis cotizaciones</h3>
-<p style={{ fontSize: "32px", fontWeight: "bold", margin: "10px 0" }}>
-{cotizaciones.length}
+<h2 style={{ marginTop: 0, color: "#1f3552" }}>Resumen</h2>
+<p style={{ color: "#4b5563", marginBottom: "10px" }}>
+Como proveedor, solo podrás responder conversaciones que hayan sido iniciadas por compradores.
 </p>
-<p>Registros asociados a este proveedor</p>
-</div>
-
-<div style={cardStyle}>
-<h3>Mi sector activo</h3>
-<p style={{ fontSize: "20px", fontWeight: "bold", margin: "10px 0" }}>
-{proveedorActual.sector || "No especificado"}
+<p style={{ color: "#6b7280", marginBottom: 0 }}>
+Más adelante aquí moveremos también los planes del proveedor: Gratis, Pro y Premium.
 </p>
-</div>
-</div>
-
-<div style={{ ...cardStyle, marginBottom: "20px" }}>
-<h3>Últimas oportunidades relacionadas</h3>
-
-{oportunidadesRelacionadas.length > 0 ? (
-oportunidadesRelacionadas.slice(0, 5).map((o) => (
-<div
-key={o.id}
-style={{
-borderBottom: "1px solid #eee",
-padding: "12px 0"
-}}
->
-<p style={{ margin: 0, fontWeight: "bold" }}>
-{o.nombre_requerimiento}
-</p>
-<p style={{ margin: "4px 0" }}>
-{o.sector} - {o.categoria}
-</p>
-<p style={{ margin: "4px 0", color: "#666" }}>
-Estado: {o.estado}
-</p>
-
-<Link
-to={`/enviar-cotizacion/${o.id}`}
-style={{
-display: "inline-block",
-marginTop: "8px",
-backgroundColor: "#1f3552",
-color: "white",
-textDecoration: "none",
-padding: "8px 12px",
-borderRadius: "8px"
-}}
->
-Enviar cotización
-</Link>
-</div>
-))
-) : (
-<p>No hay oportunidades relacionadas para este proveedor.</p>
-)}
-</div>
-
-<div style={cardStyle}>
-<h3>Mis últimas cotizaciones</h3>
-
-{cotizaciones.length > 0 ? (
-cotizaciones.slice(0, 5).map((c) => (
-<div
-key={c.id}
-style={{
-borderBottom: "1px solid #eee",
-padding: "12px 0"
-}}
->
-<p style={{ margin: 0, fontWeight: "bold" }}>
-{c.requerimiento_nombre || "Sin requerimiento"}
-</p>
-<p style={{ margin: "4px 0" }}>
-Estado: {c.estado}
-</p>
-{c.valor_referencial ? (
-<p style={{ margin: "4px 0" }}>
-Valor referencial: {c.valor_referencial}
-</p>
-) : null}
-{c.archivo_url ? (
-<p style={{ margin: "4px 0" }}>
-<a href={c.archivo_url} target="_blank" rel="noreferrer">
-Ver archivo adjunto
-</a>
-</p>
-) : null}
-</div>
-))
-) : (
-<p>No hay cotizaciones registradas para este proveedor.</p>
-)}
 </div>
 </div>
 );

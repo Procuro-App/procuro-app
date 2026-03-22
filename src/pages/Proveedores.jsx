@@ -25,7 +25,6 @@ cargarProveedores();
 
 const obtenerPrioridadPlan = (plan) => {
 const planLimpio = String(plan || "Gratis").trim();
-
 if (planLimpio === "Premium") return 1;
 if (planLimpio === "Pro") return 2;
 return 3;
@@ -107,7 +106,7 @@ fontSize: "12px",
 fontWeight: "bold",
 marginRight: "6px",
 marginBottom: "6px",
-display: "inline-block"
+display: "inline-block",
 };
 
 const obtenerEstiloTarjeta = (plan) => {
@@ -117,7 +116,7 @@ if (planLimpio === "Premium") {
 return {
 backgroundColor: "#fffaf0",
 border: "1px solid #f4d38a",
-boxShadow: "0 8px 24px rgba(180,140,40,0.15)"
+boxShadow: "0 8px 24px rgba(180,140,40,0.15)",
 };
 }
 
@@ -125,14 +124,14 @@ if (planLimpio === "Pro") {
 return {
 backgroundColor: "#f8fbff",
 border: "1px solid #b9d6ff",
-boxShadow: "0 8px 24px rgba(30,90,180,0.10)"
+boxShadow: "0 8px 24px rgba(30,90,180,0.10)",
 };
 }
 
 return {
 backgroundColor: "white",
 border: "1px solid #e5e7eb",
-boxShadow: "0 4px 14px rgba(0,0,0,0.08)"
+boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
 };
 };
 
@@ -145,8 +144,8 @@ texto: "🟡 Premium",
 estilo: {
 ...badgeBaseStyle,
 backgroundColor: "#fff3cd",
-color: "#856404"
-}
+color: "#856404",
+},
 };
 }
 
@@ -156,8 +155,8 @@ texto: "🔵 Pro",
 estilo: {
 ...badgeBaseStyle,
 backgroundColor: "#dbeafe",
-color: "#1d4ed8"
-}
+color: "#1d4ed8",
+},
 };
 }
 
@@ -166,9 +165,33 @@ texto: "⚪ Gratis",
 estilo: {
 ...badgeBaseStyle,
 backgroundColor: "#e5e7eb",
-color: "#374151"
-}
+color: "#374151",
+},
 };
+};
+
+const abrirChatComoComprador = async (proveedor) => {
+const rol = localStorage.getItem("rol") || "";
+
+if (rol !== "comprador") {
+alert("Primero debes iniciar sesión como comprador para abrir un chat.");
+navigate("/acceso-comprador");
+return;
+}
+
+const { data, error } = await supabase.auth.getUser();
+
+if (error || !data?.user?.email) {
+alert("Primero debes iniciar sesión como comprador.");
+navigate("/acceso-comprador");
+return;
+}
+
+navigate(
+`/chat?proveedor_id=${proveedor.id}&proveedor_email=${encodeURIComponent(
+proveedor.email || ""
+)}&proveedor_nombre=${encodeURIComponent(proveedor.nombre || "")}`
+);
 };
 
 return (
@@ -179,24 +202,9 @@ backgroundColor: "white",
 borderRadius: "16px",
 padding: "24px",
 boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
-marginBottom: "20px"
+marginBottom: "20px",
 }}
 >
-<button
-onClick={() => navigate(-1)}
-style={{
-marginBottom: "10px",
-backgroundColor: "#e5e7eb",
-border: "none",
-padding: "8px 12px",
-borderRadius: "8px",
-cursor: "pointer",
-fontWeight: "bold"
-}}
->
-← Volver
-</button>
-
 <h2>Proveedores</h2>
 
 <div
@@ -204,7 +212,7 @@ style={{
 display: "grid",
 gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
 gap: "12px",
-marginTop: "16px"
+marginTop: "16px",
 }}
 >
 <select
@@ -252,7 +260,7 @@ style={{
 padding: "12px",
 borderRadius: "10px",
 border: "1px solid #ccc",
-backgroundColor: pais === "Ecuador" ? "white" : "#f3f3f3"
+backgroundColor: pais === "Ecuador" ? "white" : "#f3f3f3",
 }}
 >
 <option value="">Provincia</option>
@@ -271,7 +279,7 @@ style={{
 padding: "12px",
 borderRadius: "10px",
 border: "1px solid #ccc",
-backgroundColor: provincia ? "white" : "#f3f3f3"
+backgroundColor: provincia ? "white" : "#f3f3f3",
 }}
 >
 <option value="">Ciudad</option>
@@ -306,7 +314,7 @@ style={{
 padding: "12px",
 borderRadius: "10px",
 border: "1px solid #ccc",
-backgroundColor: sector ? "white" : "#f3f3f3"
+backgroundColor: sector ? "white" : "#f3f3f3",
 }}
 >
 <option value="">Categoría</option>
@@ -325,7 +333,7 @@ style={{
 backgroundColor: "white",
 borderRadius: "16px",
 padding: "24px",
-boxShadow: "0 4px 14px rgba(0,0,0,0.08)"
+boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
 }}
 >
 <p>Cargando proveedores...</p>
@@ -335,7 +343,7 @@ boxShadow: "0 4px 14px rgba(0,0,0,0.08)"
 style={{
 display: "grid",
 gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-gap: "16px"
+gap: "16px",
 }}
 >
 {proveedoresFiltrados.map((proveedor) => {
@@ -348,7 +356,7 @@ key={proveedor.id}
 style={{
 ...estiloTarjeta,
 borderRadius: "16px",
-padding: "20px"
+padding: "20px",
 }}
 >
 <h3 style={{ marginTop: 0 }}>{proveedor.nombre}</h3>
@@ -359,7 +367,7 @@ padding: "20px"
 style={{
 ...badgeBaseStyle,
 backgroundColor: "#d1ecf1",
-color: "#0c5460"
+color: "#0c5460",
 }}
 >
 ✔ Verificado
@@ -371,7 +379,7 @@ color: "#0c5460"
 style={{
 ...badgeBaseStyle,
 backgroundColor: "#fee2e2",
-color: "#991b1b"
+color: "#991b1b",
 }}
 >
 📌 Patrocinado
@@ -392,22 +400,45 @@ color: "#991b1b"
 <p><strong>Contacto:</strong> {proveedor.contacto || "No especificado"}</p>
 <p><strong>Cargo:</strong> {proveedor.cargo || "No especificado"}</p>
 
+<div
+style={{
+display: "flex",
+gap: "10px",
+flexWrap: "wrap",
+marginTop: "14px",
+}}
+>
 <Link
 to={`/proveedor/${proveedor.id}`}
 state={{ proveedor }}
 style={{
 display: "inline-block",
-marginTop: "12px",
 backgroundColor: "#1f3552",
 color: "white",
 textDecoration: "none",
 padding: "10px 14px",
 borderRadius: "8px",
-fontWeight: "bold"
+fontWeight: "bold",
 }}
 >
 Ver perfil
 </Link>
+
+<button
+onClick={() => abrirChatComoComprador(proveedor)}
+style={{
+background: "linear-gradient(135deg, #1f3552, #2563eb)",
+color: "white",
+border: "none",
+padding: "10px 14px",
+borderRadius: "8px",
+fontWeight: "bold",
+cursor: "pointer",
+}}
+>
+Contactar proveedor
+</button>
+</div>
 </div>
 );
 })}
@@ -418,7 +449,7 @@ style={{
 backgroundColor: "white",
 borderRadius: "16px",
 padding: "24px",
-boxShadow: "0 4px 14px rgba(0,0,0,0.08)"
+boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
 }}
 >
 <p>No se encontraron proveedores con esos filtros.</p>
