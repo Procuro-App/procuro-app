@@ -19,6 +19,8 @@ const [enviando, setEnviando] = useState(false);
 const proveedorIdParam = searchParams.get("proveedor_id");
 const proveedorEmailParam = searchParams.get("proveedor_email");
 const proveedorNombreParam = searchParams.get("proveedor_nombre");
+const requerimientoIdParam = searchParams.get("requerimiento_id");
+const requerimientoNombreParam = searchParams.get("requerimiento_nombre");
 
 const esMovil =
 typeof window !== "undefined" ? window.innerWidth <= 768 : false;
@@ -179,6 +181,8 @@ proveedor_email: proveedorEmailParam,
 proveedor_id: proveedorIdParam,
 proveedor_nombre: proveedorNombreParam || proveedorEmailParam,
 comprador_nombre: usuario.email,
+requerimiento_id: requerimientoIdParam || null,
+requerimiento_nombre: requerimientoNombreParam || null,
 creada_virtualmente: true,
 });
 setMensajes([]);
@@ -264,6 +268,8 @@ const { data: nuevaConversacion, error: errorCreacion } = await supabase
 comprador_email: usuario.email,
 proveedor_email: conversacionActiva.proveedor_email,
 proveedor_id: conversacionActiva.proveedor_id,
+requerimiento_id: conversacionActiva.requerimiento_id || null,
+requerimiento_nombre: conversacionActiva.requerimiento_nombre || null,
 },
 ])
 .select()
@@ -420,6 +426,16 @@ conversacionActiva.proveedor_email
 );
 }, [conversacionActiva, rol, proveedorNombreParam]);
 
+const tituloRequerimiento = useMemo(() => {
+if (!conversacionActiva) return "";
+
+return (
+conversacionActiva.requerimiento_nombre ||
+requerimientoNombreParam ||
+""
+);
+}, [conversacionActiva, requerimientoNombreParam]);
+
 const cardStyle = {
 backgroundColor: "white",
 borderRadius: "18px",
@@ -529,6 +545,21 @@ cursor: "pointer",
 ? conv.comprador_nombre || conv.comprador_email
 : conv.proveedor_nombre || conv.proveedor_email}
 </strong>
+
+{conv.requerimiento_nombre ? (
+<span
+style={{
+display: "block",
+color: "#2563eb",
+fontSize: "13px",
+marginTop: "4px",
+fontWeight: "600",
+}}
+>
+Sobre: {conv.requerimiento_nombre}
+</span>
+) : null}
+
 <span style={{ color: "#6b7280", fontSize: "13px" }}>
 {new Date(conv.created_at).toLocaleString()}
 </span>
@@ -540,9 +571,15 @@ cursor: "pointer",
 
 <div style={cardStyle}>
 <h2 style={{ marginTop: 0, color: "#1f3552" }}>Chat</h2>
-<p style={{ color: "#6b7280", marginBottom: "16px" }}>
+<p style={{ color: "#6b7280", marginBottom: "8px" }}>
 Chat con: <strong>{tituloConversacion}</strong>
 </p>
+
+{tituloRequerimiento ? (
+<p style={{ color: "#2563eb", fontWeight: "600", marginTop: 0, marginBottom: "16px" }}>
+Conversación sobre: {tituloRequerimiento}
+</p>
+) : null}
 
 <div
 style={{
