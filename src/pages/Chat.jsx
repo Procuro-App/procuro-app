@@ -21,7 +21,8 @@ const proveedorIdParam = searchParams.get("proveedor_id") || "";
 const proveedorEmailParam = searchParams.get("proveedor_email") || "";
 const proveedorNombreParam = searchParams.get("proveedor_nombre") || "";
 const requerimientoIdParam = searchParams.get("requerimiento_id") || "";
-const requerimientoNombreParam = searchParams.get("requerimiento_nombre") || "";
+const requerimientoNombreParam =
+searchParams.get("requerimiento_nombre") || "";
 const sectorParam = searchParams.get("sector") || "";
 const categoriaParam = searchParams.get("categoria") || "";
 
@@ -30,6 +31,8 @@ typeof window !== "undefined" ? window.innerWidth <= 768 : false;
 
 const normalizarEmail = (valor) =>
 String(valor || "").trim().toLowerCase();
+
+const mismoId = (a, b) => String(a || "") === String(b || "");
 
 const cardStyle = {
 backgroundColor: "white",
@@ -84,7 +87,7 @@ proveedorIdParam &&
 proveedorEmailParam &&
 requerimientoIdParam
 ) {
-await abrirConversacionDesdeRequerimiento(user, nombre);
+await abrirOCrearConversacionExacta(user, nombre);
 }
 
 await cargarConversaciones(user, rolGuardado);
@@ -160,9 +163,7 @@ const { data, error } = await supabase
 .select("id, nombre, contacto, email")
 .in("id", proveedorIds);
 
-if (error) {
-console.error("Error cargando proveedores para chat:", error);
-} else {
+if (!error) {
 mapaProveedores = (data || []).reduce((acc, item) => {
 acc[item.id] = item;
 return acc;
@@ -176,9 +177,7 @@ const { data, error } = await supabase
 .select("auth_user_id, nombre, email")
 .in("auth_user_id", compradorIds);
 
-if (error) {
-console.error("Error cargando compradores para chat:", error);
-} else {
+if (!error) {
 mapaCompradores = (data || []).reduce((acc, item) => {
 acc[item.auth_user_id] = item;
 return acc;
@@ -226,6 +225,118 @@ return null;
 }
 };
 
+const cargarMensajes = async (conversacionId) => {
+try {
+if (!conversacionId) {
+setMensajes([]);
+return;
+}
+
+const { data, error } = await supabase
+.from("mensajes")
+.select("*")
+.eq("conversacion_id", conversacionId)
+.order("created_at", { ascending: true });
+
+if (error) {
+console.error("Error cargando mensajes:", error);
+return;
+}
+
+setMensajes([...(data || [])]);
+} catch (error) {
+console.error("Error general cargando mensajes:", error);
+}
+};
+
+const abrirOCrearConversacionExacta = async (user, nombreComprador) => {
+try {
+const requerimiento = await obtenerRequerimientoActual(requerimientoIdParam);
+
+const { data: existente, error: errorBusqueda } = await supabase
+.from("conversaciones")
+.select("*")
+.eq("comprador_email", user.email)
+.eq("proveedor_email", proveedorEmailParam)
+.eq("requerimiento_id", requerimientoIdParam)
+.maybeSingle();
+
+if (errorBusqueda) {
+console.error("Error buscando conversación exacta:", errorBusqueda);
+return null;
+}
+
+let conversacion = existente;
+
+if (!conversacion) {
+const { data: nuevaConversacion, error: errorCreacion } = await supabase
+.from("conversaciones")
+.insert([
+{
+comprador_id: user.id,
+comprador_email: user.email,
+comprador_nombre: nombreComprador || user.email,
+proveedor_email: proveedorEmailParam,
+proveedor_nombre: proveedorNombreParam || proveedorEmailParam,
+proveedor_id: proveedorIdParam,
+requerimiento_id: requerimientoIdParam,
+requerimiento_nombre:
+requerimiento?.nombre_requerimiento || requerimientoNombreParam,
+},
+])
+.select()
+.single();
+
+if (errorCreacion) {
+console.error(
+"Error creando conversación exacta:",
+errorCreacion
+);
+return null;
+}
+
+conversacion = nuevaConversacion;
+
+const textoInicial = `Hola, comparto este requerimiento: ${
+requerimiento?.nombre_requerimiento ||
+requerimientoNombreParam ||
+"Requerimiento"
+}${
+requerimiento?.descripcion
+? `\n\nDetalle: ${requerimiento.descripcion}`
+: ""
+}`;
+
+const { error: errorMensajeInicial } = await supabase
+.from("mensajes")
+.insert([
+{
+conversacion_id: conversacion.id,
+remitente_email: user.email,
+mensaje: textoInicial,
+archivo_url: requerimiento?.archivo_url || null,
+archivo_nombre: requerimiento?.archivo_nombre || null,
+},
+]);
+
+if (errorMensajeInicial) {
+console.error("Error creando mensaje inicial:", errorMensajeInicial);
+}
+}
+
+const enriquecida = await enriquecerConversaciones([conversacion]);
+const convFinal = enriquecida[0] || conversacion;
+
+setConversacionActiva(convFinal);
+await cargarMensajes(convFinal.id);
+
+return convFinal;
+} catch (error) {
+console.error("Error abriendo/creando conversación exacta:", error);
+return null;
+}
+};
+
 const cargarConversaciones = async (userParam, rolParam) => {
 try {
 const user = userParam || usuario;
@@ -254,7 +365,36 @@ return;
 const enriquecidas = await enriquecerConversaciones(data || []);
 setConversaciones(enriquecidas);
 
-if (conversacionActiva?.id) return;
+if (
+rolActual === "comprador" &&
+proveedorEmailParam &&
+requerimientoIdParam
+) {
+const exacta = enriquecidas.find(
+(c) =>
+normalizarEmail(c.proveedor_email) ===
+normalizarEmail(proveedorEmailParam) &&
+mismoId(c.requerimiento_id, requerimientoIdParam)
+);
+
+if (exacta) {
+setConversacionActiva(exacta);
+await cargarMensajes(exacta.id);
+return;
+}
+}
+
+if (conversacionActiva?.id) {
+const actualizada = enriquecidas.find((c) =>
+mismoId(c.id, conversacionActiva.id)
+);
+
+if (actualizada) {
+setConversacionActiva(actualizada);
+await cargarMensajes(actualizada.id);
+return;
+}
+}
 
 if (enriquecidas.length > 0) {
 setConversacionActiva(enriquecidas[0]);
@@ -265,115 +405,6 @@ setMensajes([]);
 }
 } catch (error) {
 console.error("Error general cargando conversaciones:", error);
-}
-};
-
-const cargarMensajes = async (conversacionId) => {
-try {
-if (!conversacionId) {
-setMensajes([]);
-return;
-}
-
-const { data, error } = await supabase
-.from("mensajes")
-.select("*")
-.eq("conversacion_id", conversacionId)
-.order("created_at", { ascending: true });
-
-if (error) {
-console.error("Error cargando mensajes:", error);
-return;
-}
-
-setMensajes([...(data || [])]);
-} catch (error) {
-console.error("Error general cargando mensajes:", error);
-}
-};
-
-const abrirConversacionDesdeRequerimiento = async (user, nombreComprador) => {
-try {
-const requerimiento = await obtenerRequerimientoActual(requerimientoIdParam);
-
-const { data: existente, error: errorBusqueda } = await supabase
-.from("conversaciones")
-.select("*")
-.eq("comprador_email", user.email)
-.eq("proveedor_email", proveedorEmailParam)
-.eq("requerimiento_id", requerimientoIdParam)
-.maybeSingle();
-
-let conv = existente;
-
-if (errorBusqueda) {
-console.error("Error buscando conversación exacta:", errorBusqueda);
-return;
-}
-
-if (!conv) {
-const { data: nuevaConversacion, error: errorCreacion } = await supabase
-.from("conversaciones")
-.insert([
-{
-comprador_id: user.id,
-comprador_email: user.email,
-comprador_nombre: nombreComprador || user.email,
-proveedor_email: proveedorEmailParam,
-proveedor_nombre: proveedorNombreParam || proveedorEmailParam,
-proveedor_id: proveedorIdParam,
-requerimiento_id: requerimientoIdParam,
-requerimiento_nombre:
-requerimiento?.nombre_requerimiento || requerimientoNombreParam,
-},
-])
-.select()
-.single();
-
-if (errorCreacion) {
-console.error(
-"Error creando conversación desde requerimiento:",
-errorCreacion
-);
-return;
-}
-
-conv = nuevaConversacion;
-
-const textoInicial = `Hola, comparto este requerimiento: ${
-requerimiento?.nombre_requerimiento ||
-requerimientoNombreParam ||
-"Requerimiento"
-}${
-requerimiento?.descripcion
-? `\n\nDetalle: ${requerimiento.descripcion}`
-: ""
-}`;
-
-const { error: errorMensajeInicial } = await supabase
-.from("mensajes")
-.insert([
-{
-conversacion_id: conv.id,
-remitente_email: user.email,
-mensaje: textoInicial,
-archivo_url: requerimiento?.archivo_url || null,
-archivo_nombre: requerimiento?.archivo_nombre || null,
-},
-]);
-
-if (errorMensajeInicial) {
-console.error("Error creando mensaje inicial:", errorMensajeInicial);
-}
-}
-
-const enriquecida = await enriquecerConversaciones([conv]);
-const conversacionLista = enriquecida[0] || conv;
-
-setConversacionActiva(conversacionLista);
-await cargarMensajes(conversacionLista.id);
-} catch (error) {
-console.error("Error abriendo conversación desde requerimiento:", error);
 }
 };
 
@@ -637,8 +668,8 @@ Cambiar conversación
 <select
 value={conversacionActiva?.id || ""}
 onChange={(e) => {
-const conv = conversaciones.find(
-(c) => String(c.id) === String(e.target.value)
+const conv = conversaciones.find((c) =>
+mismoId(c.id, e.target.value)
 );
 if (conv) seleccionarConversacion(conv);
 }}
