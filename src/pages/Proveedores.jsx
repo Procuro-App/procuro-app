@@ -1,50 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { sectores } from "../data/categorias";
-import { paises } from "../data/paises";
-import { provinciasEcuador } from "../data/provinciasEcuador";
-import { ciudadesEcuador } from "../data/ciudadesEcuador";
 
 function Proveedores() {
 const navigate = useNavigate();
+const location = useLocation();
+const [searchParams] = useSearchParams();
 
 const [proveedores, setProveedores] = useState([]);
 const [cargando, setCargando] = useState(true);
+const [busqueda, setBusqueda] = useState("");
 
-const [cobertura, setCobertura] = useState("");
-const [pais, setPais] = useState("");
-const [provincia, setProvincia] = useState("");
-const [ciudad, setCiudad] = useState("");
-const [sector, setSector] = useState("");
-const [categoria, setCategoria] = useState("");
+const requerimientoId = searchParams.get("requerimiento_id") || "";
+const requerimientoNombre = searchParams.get("requerimiento_nombre") || "";
+const sectorDesdeRequerimiento = searchParams.get("sector") || "";
+const categoriaDesdeRequerimiento = searchParams.get("categoria") || "";
 
 useEffect(() => {
 cargarProveedores();
 }, []);
-
-const obtenerPrioridadPlan = (plan) => {
-const planLimpio = String(plan || "Gratis").trim();
-if (planLimpio === "Premium") return 1;
-if (planLimpio === "Pro") return 2;
-return 3;
-};
-
-const ordenarProveedores = (lista) => {
-return [...lista].sort((a, b) => {
-const prioridadA = obtenerPrioridadPlan(a.plan);
-const prioridadB = obtenerPrioridadPlan(b.plan);
-
-if (prioridadA !== prioridadB) {
-return prioridadA - prioridadB;
-}
-
-const nombreA = String(a.nombre || "").toLowerCase();
-const nombreB = String(b.nombre || "").toLowerCase();
-
-return nombreA.localeCompare(nombreB);
-});
-};
 
 const cargarProveedores = async () => {
 try {
@@ -53,281 +27,194 @@ setCargando(true);
 const { data, error } = await supabase
 .from("proveedores")
 .select("*")
-.eq("estado", "Aprobado");
+.order("created_at", { ascending: false });
 
 if (error) {
 console.error("Error cargando proveedores:", error);
-setCargando(false);
+setProveedores([]);
 return;
 }
 
-setProveedores(ordenarProveedores(data || []));
-} catch (err) {
-console.error("Error general cargando proveedores:", err);
+setProveedores(data || []);
+} catch (error) {
+console.error("Error general cargando proveedores:", error);
+setProveedores([]);
 } finally {
 setCargando(false);
 }
 };
 
-const categoriasDisponibles = sector ? sectores[sector] || [] : [];
-const ciudadesDisponibles = provincia ? ciudadesEcuador[provincia] || [] : [];
+const textoSeguro = (valor) => String(valor || "").trim().toLowerCase();
+
+const obtenerTextoPlan = (plan) => {
+const planTexto = textoSeguro(plan);
+
+if (planTexto === "premium") {
+return "Alta visibilidad y prioridad en resultados.";
+}
+
+if (planTexto === "pro") {
+return "Mejor posicionamiento frente a proveedores gratuitos.";
+}
+
+return "Visibilidad básica dentro del directorio.";
+};
 
 const proveedoresFiltrados = useMemo(() => {
-const filtrados = proveedores.filter((p) => {
-const cumpleCobertura = cobertura ? p.cobertura === cobertura : true;
-const cumplePais = pais ? p.pais === pais : true;
-const cumpleProvincia = provincia ? p.provincia === provincia : true;
-const cumpleCiudad = ciudad ? p.ciudad === ciudad : true;
-const cumpleSector = sector ? p.sector === sector : true;
-const cumpleCategoria = categoria ? p.categoria === categoria : true;
+let lista = [...proveedores];
 
-return (
-cumpleCobertura &&
-cumplePais &&
-cumpleProvincia &&
-cumpleCiudad &&
-cumpleSector &&
-cumpleCategoria
-);
+lista = lista.filter((p) => {
+const estado = textoSeguro(p.estado);
+const verificado = p.verificado;
+
+if (!p.estado && verificado === undefined) return true;
+if (estado && estado !== "aprobado") return false;
+if (verificado === false) return false;
+
+return true;
 });
 
-return ordenarProveedores(filtrados);
-}, [proveedores, cobertura, pais, provincia, ciudad, sector, categoria]);
-
-const limpiarRuc = (valor) => {
-if (!valor) return "No especificado";
-return String(valor).trim();
-};
-
-const badgeBaseStyle = {
-padding: "6px 10px",
-borderRadius: "999px",
-fontSize: "12px",
-fontWeight: "bold",
-marginRight: "6px",
-marginBottom: "6px",
-display: "inline-block",
-};
-
-const obtenerEstiloTarjeta = (plan) => {
-const planLimpio = String(plan || "Gratis").trim();
-
-if (planLimpio === "Premium") {
-return {
-backgroundColor: "#fffaf0",
-border: "1px solid #f4d38a",
-boxShadow: "0 8px 24px rgba(180,140,40,0.15)",
-};
+if (sectorDesdeRequerimiento) {
+lista = lista.filter(
+(p) => textoSeguro(p.sector) === textoSeguro(sectorDesdeRequerimiento)
+);
 }
 
-if (planLimpio === "Pro") {
-return {
-backgroundColor: "#f8fbff",
-border: "1px solid #b9d6ff",
-boxShadow: "0 8px 24px rgba(30,90,180,0.10)",
-};
+if (categoriaDesdeRequerimiento) {
+lista = lista.filter(
+(p) =>
+textoSeguro(p.categoria) === textoSeguro(categoriaDesdeRequerimiento)
+);
 }
 
-return {
-backgroundColor: "white",
-border: "1px solid #e5e7eb",
-boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
-};
-};
+if (busqueda.trim()) {
+const q = textoSeguro(busqueda);
 
-const obtenerBadgePlan = (plan) => {
-const planLimpio = String(plan || "Gratis").trim();
+lista = lista.filter((p) => {
+const campos = [
+p.nombre,
+p.descripcion,
+p.sector,
+p.categoria,
+p.cobertura,
+p.pais,
+p.provincia,
+p.ciudad,
+p.contacto,
+p.email,
+p.telefono,
+]
+.map((x) => textoSeguro(x))
+.join(" ");
 
-if (planLimpio === "Premium") {
-return {
-texto: "🟡 Premium",
-estilo: {
-...badgeBaseStyle,
-backgroundColor: "#fff3cd",
-color: "#856404",
-},
-};
+return campos.includes(q);
+});
 }
 
-if (planLimpio === "Pro") {
-return {
-texto: "🔵 Pro",
-estilo: {
-...badgeBaseStyle,
-backgroundColor: "#dbeafe",
-color: "#1d4ed8",
-},
-};
-}
-
-return {
-texto: "⚪ Gratis",
-estilo: {
-...badgeBaseStyle,
-backgroundColor: "#e5e7eb",
-color: "#374151",
-},
-};
+const prioridadPlan = {
+premium: 1,
+pro: 2,
+gratis: 3,
+free: 3,
 };
 
-const abrirChatComoComprador = async (proveedor) => {
-const rol = localStorage.getItem("rol") || "";
+lista.sort((a, b) => {
+const planA = prioridadPlan[textoSeguro(a.plan)] || 99;
+const planB = prioridadPlan[textoSeguro(b.plan)] || 99;
 
-if (rol !== "comprador") {
-alert("Primero debes iniciar sesión como comprador para abrir un chat.");
-navigate("/acceso-comprador");
+if (planA !== planB) return planA - planB;
+
+const fechaA = new Date(a.created_at || 0).getTime();
+const fechaB = new Date(b.created_at || 0).getTime();
+
+return fechaB - fechaA;
+});
+
+return lista;
+}, [
+proveedores,
+busqueda,
+sectorDesdeRequerimiento,
+categoriaDesdeRequerimiento,
+]);
+
+const abrirChatConProveedor = (proveedor) => {
+if (!requerimientoId || !requerimientoNombre) {
+alert(
+"Para iniciar un chat, primero debes entrar desde un requerimiento."
+);
 return;
 }
 
-const { data, error } = await supabase.auth.getUser();
-
-if (error || !data?.user?.email) {
-alert("Primero debes iniciar sesión como comprador.");
-navigate("/acceso-comprador");
-return;
-}
+const proveedorId = encodeURIComponent(proveedor.id || "");
+const proveedorEmail = encodeURIComponent(proveedor.email || "");
+const proveedorNombre = encodeURIComponent(
+proveedor.nombre || proveedor.contacto || proveedor.email || "Proveedor"
+);
+const reqId = encodeURIComponent(requerimientoId);
+const reqNombre = encodeURIComponent(requerimientoNombre);
+const sector = encodeURIComponent(sectorDesdeRequerimiento || "");
+const categoria = encodeURIComponent(categoriaDesdeRequerimiento || "");
 
 navigate(
-`/chat?proveedor_id=${proveedor.id}&proveedor_email=${encodeURIComponent(
-proveedor.email || ""
-)}&proveedor_nombre=${encodeURIComponent(proveedor.nombre || "")}`
+`/chat?proveedor_id=${proveedorId}&proveedor_email=${proveedorEmail}&proveedor_nombre=${proveedorNombre}&requerimiento_id=${reqId}&requerimiento_nombre=${reqNombre}&sector=${sector}&categoria=${categoria}`
+);
+};
+
+const volverARequerimientos = () => {
+navigate("/requerimientos");
+};
+
+const verPerfilProveedor = (proveedor) => {
+const rutaActual = `${location.pathname}${location.search}`;
+
+navigate(`/proveedor/${proveedor.id}`, {
+state: {
+proveedor,
+volverA: rutaActual,
+},
+});
+};
+
+const badgePlan = (plan) => {
+const planTexto = textoSeguro(plan);
+
+let fondo = "#e5e7eb";
+let color = "#374151";
+let texto = plan || "Gratis";
+
+if (planTexto === "premium") {
+fondo = "#fef3c7";
+color = "#92400e";
+texto = "Premium";
+} else if (planTexto === "pro") {
+fondo = "#dbeafe";
+color = "#1d4ed8";
+texto = "Pro";
+} else if (planTexto === "gratis" || planTexto === "free" || !planTexto) {
+fondo = "#e5e7eb";
+color = "#374151";
+texto = "Gratis";
+}
+
+return (
+<span
+style={{
+display: "inline-block",
+padding: "6px 10px",
+borderRadius: "999px",
+backgroundColor: fondo,
+color,
+fontSize: "12px",
+fontWeight: "bold",
+}}
+>
+{texto}
+</span>
 );
 };
 
 return (
-<div>
-<div
-style={{
-backgroundColor: "white",
-borderRadius: "16px",
-padding: "24px",
-boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
-marginBottom: "20px",
-}}
->
-<h2>Proveedores</h2>
-
-<div
-style={{
-display: "grid",
-gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-gap: "12px",
-marginTop: "16px",
-}}
->
-<select
-value={cobertura}
-onChange={(e) => {
-setCobertura(e.target.value);
-setPais("");
-setProvincia("");
-setCiudad("");
-}}
-style={{ padding: "12px", borderRadius: "10px", border: "1px solid #ccc" }}
->
-<option value="">Cobertura</option>
-<option value="Nacional">Nacional</option>
-<option value="Internacional">Internacional</option>
-</select>
-
-<select
-value={pais}
-onChange={(e) => {
-setPais(e.target.value);
-if (e.target.value !== "Ecuador") {
-setProvincia("");
-setCiudad("");
-}
-}}
-style={{ padding: "12px", borderRadius: "10px", border: "1px solid #ccc" }}
->
-<option value="">País</option>
-{paises.map((item) => (
-<option key={item} value={item}>
-{item}
-</option>
-))}
-</select>
-
-<select
-value={provincia}
-onChange={(e) => {
-setProvincia(e.target.value);
-setCiudad("");
-}}
-disabled={pais !== "Ecuador"}
-style={{
-padding: "12px",
-borderRadius: "10px",
-border: "1px solid #ccc",
-backgroundColor: pais === "Ecuador" ? "white" : "#f3f3f3",
-}}
->
-<option value="">Provincia</option>
-{provinciasEcuador.map((item) => (
-<option key={item} value={item}>
-{item}
-</option>
-))}
-</select>
-
-<select
-value={ciudad}
-onChange={(e) => setCiudad(e.target.value)}
-disabled={!provincia}
-style={{
-padding: "12px",
-borderRadius: "10px",
-border: "1px solid #ccc",
-backgroundColor: provincia ? "white" : "#f3f3f3",
-}}
->
-<option value="">Ciudad</option>
-{ciudadesDisponibles.map((item) => (
-<option key={item} value={item}>
-{item}
-</option>
-))}
-</select>
-
-<select
-value={sector}
-onChange={(e) => {
-setSector(e.target.value);
-setCategoria("");
-}}
-style={{ padding: "12px", borderRadius: "10px", border: "1px solid #ccc" }}
->
-<option value="">Sector</option>
-{Object.keys(sectores).map((item) => (
-<option key={item} value={item}>
-{item}
-</option>
-))}
-</select>
-
-<select
-value={categoria}
-onChange={(e) => setCategoria(e.target.value)}
-disabled={!sector}
-style={{
-padding: "12px",
-borderRadius: "10px",
-border: "1px solid #ccc",
-backgroundColor: sector ? "white" : "#f3f3f3",
-}}
->
-<option value="">Categoría</option>
-{categoriasDisponibles.map((item) => (
-<option key={item} value={item}>
-{item}
-</option>
-))}
-</select>
-</div>
-</div>
-
-{cargando ? (
 <div
 style={{
 backgroundColor: "white",
@@ -336,123 +223,311 @@ padding: "24px",
 boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
 }}
 >
-<p>Cargando proveedores...</p>
-</div>
-) : proveedoresFiltrados.length > 0 ? (
+<button
+onClick={() => navigate(-1)}
+style={{
+marginBottom: "10px",
+backgroundColor: "#e5e7eb",
+border: "none",
+padding: "8px 12px",
+borderRadius: "8px",
+cursor: "pointer",
+fontWeight: "bold",
+}}
+>
+← Volver
+</button>
+
+<h2 style={{ marginTop: 0 }}>Proveedores</h2>
+
+{requerimientoId && requerimientoNombre ? (
 <div
 style={{
-display: "grid",
-gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-gap: "16px",
+marginBottom: "18px",
+padding: "16px",
+borderRadius: "12px",
+background: "#eff6ff",
+borderLeft: "6px solid #2563eb",
+borderRight: "6px solid #f59e0b",
 }}
 >
-{proveedoresFiltrados.map((proveedor) => {
-const estiloTarjeta = obtenerEstiloTarjeta(proveedor.plan);
-const badgePlan = obtenerBadgePlan(proveedor.plan);
+<p style={{ margin: 0, color: "#1f3552", fontWeight: "bold" }}>
+Estás buscando proveedores para este requerimiento:
+</p>
 
-return (
-<div
-key={proveedor.id}
+<p
 style={{
-...estiloTarjeta,
-borderRadius: "16px",
-padding: "20px",
+margin: "8px 0 0 0",
+fontSize: "18px",
+fontWeight: "bold",
+color: "#111827",
 }}
 >
-<h3 style={{ marginTop: 0 }}>{proveedor.nombre}</h3>
-
-<div style={{ marginBottom: "12px" }}>
-{proveedor.verificado && (
-<span
-style={{
-...badgeBaseStyle,
-backgroundColor: "#d1ecf1",
-color: "#0c5460",
-}}
->
-✔ Verificado
-</span>
-)}
-
-{proveedor.patrocinado && (
-<span
-style={{
-...badgeBaseStyle,
-backgroundColor: "#fee2e2",
-color: "#991b1b",
-}}
->
-📌 Patrocinado
-</span>
-)}
-
-<span style={badgePlan.estilo}>{badgePlan.texto}</span>
-</div>
-
-<p><strong>Tipo:</strong> {proveedor.tipo_persona || "No especificado"}</p>
-<p><strong>RUC / RUT:</strong> {limpiarRuc(proveedor.ruc_rut)}</p>
-<p><strong>Cobertura:</strong> {proveedor.cobertura || "No especificada"}</p>
-<p><strong>País:</strong> {proveedor.pais || "No especificado"}</p>
-{proveedor.provincia ? <p><strong>Provincia:</strong> {proveedor.provincia}</p> : null}
-{proveedor.ciudad ? <p><strong>Ciudad:</strong> {proveedor.ciudad}</p> : null}
-<p><strong>Sector:</strong> {proveedor.sector || "No especificado"}</p>
-<p><strong>Categoría:</strong> {proveedor.categoria || "No especificada"}</p>
-<p><strong>Contacto:</strong> {proveedor.contacto || "No especificado"}</p>
-<p><strong>Cargo:</strong> {proveedor.cargo || "No especificado"}</p>
+{requerimientoNombre}
+</p>
 
 <div
 style={{
+marginTop: "10px",
 display: "flex",
 gap: "10px",
 flexWrap: "wrap",
-marginTop: "14px",
 }}
 >
-<Link
-to={`/proveedor/${proveedor.id}`}
-state={{ proveedor }}
+{sectorDesdeRequerimiento ? (
+<span
 style={{
-display: "inline-block",
-backgroundColor: "#1f3552",
-color: "white",
-textDecoration: "none",
-padding: "10px 14px",
-borderRadius: "8px",
+padding: "6px 10px",
+borderRadius: "999px",
+backgroundColor: "#dbeafe",
+color: "#1d4ed8",
+fontSize: "12px",
 fontWeight: "bold",
 }}
 >
-Ver perfil
-</Link>
+Sector: {sectorDesdeRequerimiento}
+</span>
+) : null}
+
+{categoriaDesdeRequerimiento ? (
+<span
+style={{
+padding: "6px 10px",
+borderRadius: "999px",
+backgroundColor: "#dcfce7",
+color: "#166534",
+fontSize: "12px",
+fontWeight: "bold",
+}}
+>
+Categoría: {categoriaDesdeRequerimiento}
+</span>
+) : null}
+</div>
 
 <button
-onClick={() => abrirChatComoComprador(proveedor)}
+onClick={volverARequerimientos}
 style={{
-background: "linear-gradient(135deg, #1f3552, #2563eb)",
+marginTop: "12px",
+backgroundColor: "#1f3552",
 color: "white",
 border: "none",
 padding: "10px 14px",
 borderRadius: "8px",
-fontWeight: "bold",
 cursor: "pointer",
+fontWeight: "bold",
 }}
 >
-Contactar proveedor
+Volver a mis requerimientos
 </button>
-</div>
-</div>
-);
-})}
 </div>
 ) : (
 <div
 style={{
-backgroundColor: "white",
-borderRadius: "16px",
-padding: "24px",
-boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
+marginBottom: "18px",
+padding: "14px",
+borderRadius: "12px",
+backgroundColor: "#fff7ed",
+borderLeft: "6px solid #f59e0b",
 }}
 >
-<p>No se encontraron proveedores con esos filtros.</p>
+<p style={{ margin: 0, color: "#92400e", fontWeight: "bold" }}>
+Vista general de proveedores
+</p>
+<p style={{ margin: "6px 0 0 0", color: "#7c2d12" }}>
+Puedes explorar proveedores, pero para iniciar una conversación con
+contexto debes entrar desde un requerimiento.
+</p>
+</div>
+)}
+
+<input
+type="text"
+placeholder="Buscar por nombre, sector, categoría, ciudad o descripción"
+value={busqueda}
+onChange={(e) => setBusqueda(e.target.value)}
+style={{
+width: "100%",
+padding: "12px",
+marginBottom: "18px",
+borderRadius: "10px",
+border: "1px solid #ccc",
+}}
+/>
+
+{cargando ? (
+<p>Cargando proveedores...</p>
+) : proveedoresFiltrados.length === 0 ? (
+<div
+style={{
+border: "1px solid #e5e7eb",
+borderRadius: "12px",
+padding: "18px",
+backgroundColor: "#fafafa",
+}}
+>
+<p style={{ margin: 0, fontWeight: "bold" }}>
+No encontramos proveedores para este criterio.
+</p>
+<p style={{ margin: "6px 0 0 0", color: "#6b7280" }}>
+Puedes volver al requerimiento o cambiar el filtro de búsqueda.
+</p>
+</div>
+) : (
+<div
+style={{
+display: "grid",
+gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+gap: "14px",
+}}
+>
+{proveedoresFiltrados.map((p) => (
+<div
+key={p.id}
+style={{
+border: "1px solid #dcdcdc",
+borderRadius: "14px",
+padding: "16px",
+backgroundColor: "white",
+boxShadow: "0 4px 10px rgba(0,0,0,0.04)",
+}}
+>
+<div
+style={{
+display: "flex",
+justifyContent: "space-between",
+alignItems: "flex-start",
+gap: "10px",
+marginBottom: "10px",
+}}
+>
+<div>
+<h3
+style={{
+margin: 0,
+fontSize: "18px",
+color: "#111827",
+}}
+>
+{p.nombre || p.contacto || "Proveedor sin nombre"}
+</h3>
+
+<p
+style={{
+margin: "6px 0 0 0",
+color: "#6b7280",
+fontSize: "14px",
+}}
+>
+{p.sector || "Sin sector"} | {p.categoria || "Sin categoría"}
+</p>
+</div>
+
+<div>{badgePlan(p.plan)}</div>
+</div>
+
+<p
+style={{
+margin: "0 0 10px 0",
+fontSize: "13px",
+color: "#6b7280",
+lineHeight: 1.4,
+}}
+>
+{obtenerTextoPlan(p.plan)}
+</p>
+
+{p.descripcion ? (
+<p style={{ margin: "10px 0", color: "#374151" }}>
+{p.descripcion}
+</p>
+) : null}
+
+<p style={{ margin: "6px 0" }}>
+<strong>Cobertura:</strong> {p.cobertura || "No definida"}
+</p>
+
+<p style={{ margin: "6px 0" }}>
+<strong>Ubicación:</strong>{" "}
+{[p.pais, p.provincia, p.ciudad].filter(Boolean).join(" | ") ||
+"No definida"}
+</p>
+
+<p style={{ margin: "6px 0" }}>
+<strong>Contacto:</strong> {p.contacto || "No definido"}
+</p>
+
+<p style={{ margin: "6px 0" }}>
+<strong>Email:</strong> {p.email || "No definido"}
+</p>
+
+{p.telefono ? (
+<p style={{ margin: "6px 0" }}>
+<strong>Teléfono:</strong> {p.telefono}
+</p>
+) : null}
+
+<div
+style={{
+marginTop: "14px",
+display: "flex",
+flexWrap: "wrap",
+gap: "10px",
+}}
+>
+<button
+onClick={() => verPerfilProveedor(p)}
+style={{
+backgroundColor: "#e5e7eb",
+color: "#1f3552",
+border: "none",
+padding: "10px 14px",
+borderRadius: "8px",
+cursor: "pointer",
+fontWeight: "bold",
+}}
+>
+Ver perfil
+</button>
+
+{requerimientoId && requerimientoNombre ? (
+<button
+onClick={() => abrirChatConProveedor(p)}
+style={{
+backgroundColor: "#2563eb",
+color: "white",
+border: "none",
+padding: "10px 14px",
+borderRadius: "8px",
+cursor: "pointer",
+fontWeight: "bold",
+}}
+>
+Contactar proveedor para este requerimiento
+</button>
+) : (
+<button
+onClick={() =>
+alert(
+"Para iniciar un chat, primero abre un requerimiento y entra desde ahí."
+)
+}
+style={{
+backgroundColor: "#9ca3af",
+color: "white",
+border: "none",
+padding: "10px 14px",
+borderRadius: "8px",
+cursor: "pointer",
+fontWeight: "bold",
+}}
+>
+Abrir desde requerimiento
+</button>
+)}
+</div>
+</div>
+))}
 </div>
 )}
 </div>

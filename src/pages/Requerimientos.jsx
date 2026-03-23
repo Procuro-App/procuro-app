@@ -80,7 +80,7 @@ const { error } = await supabase.storage
 .from("requerimientos")
 .upload(nombreSeguro, file, {
 cacheControl: "3600",
-upsert: true
+upsert: true,
 });
 
 if (error) {
@@ -94,12 +94,14 @@ const { data } = supabase.storage
 
 return {
 url: data?.publicUrl || "",
-nombre: file.name
+nombre: file.name,
 };
 };
 
 const categoriasDisponibles = sector ? sectores[sector] || [] : [];
-const ciudadesDisponibles = provincia ? ciudadesEcuador[provincia] || [] : [];
+const ciudadesDisponibles = provincia
+? ciudadesEcuador[provincia] || []
+: [];
 
 const crearRequerimiento = async () => {
 if (!usuario?.id || !usuario?.email) {
@@ -129,7 +131,10 @@ let archivoSubidoUrl = "";
 let archivoSubidoNombre = "";
 
 if (archivo) {
-const resultadoArchivo = await subirArchivoRequerimiento(archivo, usuario.id);
+const resultadoArchivo = await subirArchivoRequerimiento(
+archivo,
+usuario.id
+);
 archivoSubidoUrl = resultadoArchivo.url;
 archivoSubidoNombre = resultadoArchivo.nombre;
 }
@@ -148,8 +153,8 @@ estado: "Abierto",
 comprador_email: usuario.email,
 comprador_user_id: usuario.id,
 archivo_url: archivoSubidoUrl,
-archivo_nombre: archivoSubidoNombre
-}
+archivo_nombre: archivoSubidoNombre,
+},
 ]);
 
 if (error) {
@@ -173,10 +178,28 @@ setArchivo(null);
 await cargarRequerimientosPrivados(usuario);
 } catch (err) {
 console.error("Error general creando requerimiento:", err);
-alert(`Ocurrió un error al crear el requerimiento: ${err.message || "Error desconocido"}`);
+alert(
+`Ocurrió un error al crear el requerimiento: ${
+err.message || "Error desconocido"
+}`
+);
 } finally {
 setGuardando(false);
 }
+};
+
+const abrirProveedoresParaRequerimiento = (req) => {
+const titulo = encodeURIComponent(req.nombre_requerimiento || "");
+const categoriaReq = encodeURIComponent(req.categoria || "");
+const sectorReq = encodeURIComponent(req.sector || "");
+
+navigate(
+`/proveedores?requerimiento_id=${req.id}&requerimiento_nombre=${titulo}&categoria=${categoriaReq}&sector=${sectorReq}`
+);
+};
+
+const verCotizacionesDeRequerimiento = (req) => {
+navigate(`/cotizaciones?requerimiento_id=${req.id}`);
 };
 
 if (!usuario) {
@@ -186,7 +209,7 @@ style={{
 backgroundColor: "white",
 borderRadius: "16px",
 padding: "24px",
-boxShadow: "0 4px 14px rgba(0,0,0,0.08)"
+boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
 }}
 >
 <h2>Requerimientos</h2>
@@ -201,7 +224,7 @@ color: "white",
 textDecoration: "none",
 padding: "10px 14px",
 borderRadius: "8px",
-fontWeight: "bold"
+fontWeight: "bold",
 }}
 >
 Ir a acceso comprador
@@ -216,11 +239,11 @@ style={{
 backgroundColor: "white",
 borderRadius: "16px",
 padding: "24px",
-boxShadow: "0 4px 14px rgba(0,0,0,0.08)"
+boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
 }}
 >
 <button
-onClick={() => navigate(-1)}
+onClick={() => navigate("/panel-comprador")}
 style={{
 marginBottom: "10px",
 backgroundColor: "#e5e7eb",
@@ -228,14 +251,16 @@ border: "none",
 padding: "8px 12px",
 borderRadius: "8px",
 cursor: "pointer",
-fontWeight: "bold"
+fontWeight: "bold",
 }}
 >
 ← Volver
 </button>
 
 <h2>Requerimientos</h2>
-<p><strong>Comprador activo:</strong> {usuario.email}</p>
+<p>
+<strong>Comprador activo:</strong> {usuario.email}
+</p>
 
 <input
 type="text"
@@ -247,7 +272,7 @@ width: "100%",
 padding: "12px",
 marginBottom: "12px",
 borderRadius: "10px",
-border: "1px solid #ccc"
+border: "1px solid #ccc",
 }}
 />
 
@@ -256,7 +281,7 @@ style={{
 display: "grid",
 gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
 gap: "12px",
-marginBottom: "12px"
+marginBottom: "12px",
 }}
 >
 <select
@@ -267,7 +292,11 @@ setPais("");
 setProvincia("");
 setCiudad("");
 }}
-style={{ padding: "12px", borderRadius: "10px", border: "1px solid #ccc" }}
+style={{
+padding: "12px",
+borderRadius: "10px",
+border: "1px solid #ccc",
+}}
 >
 <option value="">Cobertura</option>
 <option value="Nacional">Nacional</option>
@@ -283,7 +312,11 @@ setProvincia("");
 setCiudad("");
 }
 }}
-style={{ padding: "12px", borderRadius: "10px", border: "1px solid #ccc" }}
+style={{
+padding: "12px",
+borderRadius: "10px",
+border: "1px solid #ccc",
+}}
 >
 <option value="">País</option>
 {paises.map((item) => (
@@ -304,7 +337,7 @@ style={{
 padding: "12px",
 borderRadius: "10px",
 border: "1px solid #ccc",
-backgroundColor: pais === "Ecuador" ? "white" : "#f3f3f3"
+backgroundColor: pais === "Ecuador" ? "white" : "#f3f3f3",
 }}
 >
 <option value="">Provincia</option>
@@ -323,7 +356,7 @@ style={{
 padding: "12px",
 borderRadius: "10px",
 border: "1px solid #ccc",
-backgroundColor: provincia ? "white" : "#f3f3f3"
+backgroundColor: provincia ? "white" : "#f3f3f3",
 }}
 >
 <option value="">Ciudad</option>
@@ -340,7 +373,11 @@ onChange={(e) => {
 setSector(e.target.value);
 setCategoria("");
 }}
-style={{ padding: "12px", borderRadius: "10px", border: "1px solid #ccc" }}
+style={{
+padding: "12px",
+borderRadius: "10px",
+border: "1px solid #ccc",
+}}
 >
 <option value="">Sector</option>
 {Object.keys(sectores).map((item) => (
@@ -358,7 +395,7 @@ style={{
 padding: "12px",
 borderRadius: "10px",
 border: "1px solid #ccc",
-backgroundColor: sector ? "white" : "#f3f3f3"
+backgroundColor: sector ? "white" : "#f3f3f3",
 }}
 >
 <option value="">Categoría</option>
@@ -380,12 +417,18 @@ minHeight: "100px",
 padding: "12px",
 marginBottom: "12px",
 borderRadius: "10px",
-border: "1px solid #ccc"
+border: "1px solid #ccc",
 }}
 />
 
 <div style={{ marginBottom: "16px" }}>
-<label style={{ display: "block", marginBottom: "6px", fontWeight: "bold" }}>
+<label
+style={{
+display: "block",
+marginBottom: "6px",
+fontWeight: "bold",
+}}
+>
 Archivo adjunto (opcional)
 </label>
 <input
@@ -395,7 +438,7 @@ style={{
 width: "100%",
 padding: "12px",
 borderRadius: "10px",
-border: "1px solid #ccc"
+border: "1px solid #ccc",
 }}
 />
 </div>
@@ -410,7 +453,7 @@ border: "none",
 padding: "12px 18px",
 borderRadius: "10px",
 cursor: "pointer",
-fontWeight: "bold"
+fontWeight: "bold",
 }}
 >
 {guardando ? "Guardando..." : "Crear requerimiento"}
@@ -429,12 +472,35 @@ style={{
 border: "1px solid #dcdcdc",
 borderRadius: "10px",
 padding: "15px",
-marginBottom: "12px"
+marginBottom: "12px",
+backgroundColor: "#fff",
 }}
 >
-<p style={{ margin: 0, fontWeight: "bold" }}>{r.nombre_requerimiento}</p>
-<p>{r.sector} - {r.categoria}</p>
-<p>Estado: {r.estado}</p>
+<p style={{ margin: 0, fontWeight: "bold", fontSize: "18px" }}>
+{r.nombre_requerimiento}
+</p>
+
+<p style={{ margin: "8px 0 4px 0" }}>
+<strong>Sector:</strong> {r.sector || "No definido"} |{" "}
+<strong>Categoría:</strong> {r.categoria || "No definida"}
+</p>
+
+<p style={{ margin: "4px 0" }}>
+<strong>Estado:</strong> {r.estado || "Abierto"}
+</p>
+
+<p style={{ margin: "4px 0" }}>
+<strong>Cobertura:</strong> {r.cobertura || "No definida"} |{" "}
+<strong>País:</strong> {r.pais || "No definido"}
+{r.provincia ? ` | ${r.provincia}` : ""}
+{r.ciudad ? ` | ${r.ciudad}` : ""}
+</p>
+
+{r.descripcion ? (
+<p style={{ margin: "8px 0" }}>
+<strong>Descripción:</strong> {r.descripcion}
+</p>
+) : null}
 
 {r.archivo_nombre ? (
 <p>
@@ -448,6 +514,45 @@ r.archivo_nombre
 )}
 </p>
 ) : null}
+
+<div
+style={{
+marginTop: "12px",
+display: "flex",
+flexWrap: "wrap",
+gap: "10px",
+}}
+>
+<button
+onClick={() => abrirProveedoresParaRequerimiento(r)}
+style={{
+backgroundColor: "#2563eb",
+color: "white",
+border: "none",
+padding: "10px 14px",
+borderRadius: "8px",
+cursor: "pointer",
+fontWeight: "bold",
+}}
+>
+Ver proveedores para este requerimiento
+</button>
+
+<button
+onClick={() => verCotizacionesDeRequerimiento(r)}
+style={{
+backgroundColor: "#10b981",
+color: "white",
+border: "none",
+padding: "10px 14px",
+borderRadius: "8px",
+cursor: "pointer",
+fontWeight: "bold",
+}}
+>
+Ver cotizaciones
+</button>
+</div>
 </div>
 ))
 ) : (

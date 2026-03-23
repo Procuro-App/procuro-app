@@ -8,6 +8,7 @@ const navigate = useNavigate();
 
 const [usuario, setUsuario] = useState(null);
 const [rol, setRol] = useState("");
+const [nombreUsuario, setNombreUsuario] = useState("");
 const [conversaciones, setConversaciones] = useState([]);
 const [conversacionActiva, setConversacionActiva] = useState(null);
 const [mensajes, setMensajes] = useState([]);
@@ -16,24 +17,44 @@ const [archivoAdjunto, setArchivoAdjunto] = useState(null);
 const [cargando, setCargando] = useState(true);
 const [enviando, setEnviando] = useState(false);
 
-const proveedorIdParam = searchParams.get("proveedor_id");
-const proveedorEmailParam = searchParams.get("proveedor_email");
-const proveedorNombreParam = searchParams.get("proveedor_nombre");
-const requerimientoIdParam = searchParams.get("requerimiento_id");
-const requerimientoNombreParam = searchParams.get("requerimiento_nombre");
+const proveedorIdParam = searchParams.get("proveedor_id") || "";
+const proveedorEmailParam = searchParams.get("proveedor_email") || "";
+const proveedorNombreParam = searchParams.get("proveedor_nombre") || "";
+const requerimientoIdParam = searchParams.get("requerimiento_id") || "";
+const requerimientoNombreParam = searchParams.get("requerimiento_nombre") || "";
+const sectorParam = searchParams.get("sector") || "";
+const categoriaParam = searchParams.get("categoria") || "";
 
 const esMovil =
 typeof window !== "undefined" ? window.innerWidth <= 768 : false;
 
-useEffect(() => {
-iniciar();
-}, []);
+const normalizarEmail = (valor) =>
+String(valor || "").trim().toLowerCase();
+
+const cardStyle = {
+backgroundColor: "white",
+borderRadius: "18px",
+padding: esMovil ? "18px" : "24px",
+boxShadow: "0 8px 22px rgba(0,0,0,0.08)",
+borderLeft: "6px solid #3b82f6",
+borderRight: "6px solid #f59e0b",
+};
+
+const volverStyle = {
+backgroundColor: "#e5e7eb",
+color: "#1f3552",
+border: "none",
+padding: "10px 14px",
+borderRadius: "10px",
+fontWeight: "bold",
+cursor: "pointer",
+marginBottom: "16px",
+};
 
 useEffect(() => {
-if (usuario?.email) {
-cargarConversaciones();
-}
-}, [usuario]);
+iniciar();
+// eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
 
 const iniciar = async () => {
 try {
@@ -49,7 +70,24 @@ console.error("Error obteniendo usuario autenticado:", error);
 return;
 }
 
-setUsuario(data?.user || null);
+const user = data?.user || null;
+setUsuario(user);
+
+if (!user?.email) return;
+
+const nombre = await obtenerNombreUsuario(user, rolGuardado);
+setNombreUsuario(nombre);
+
+if (
+rolGuardado === "comprador" &&
+proveedorIdParam &&
+proveedorEmailParam &&
+requerimientoIdParam
+) {
+await abrirConversacionDesdeRequerimiento(user, nombre);
+}
+
+await cargarConversaciones(user, rolGuardado);
 } catch (error) {
 console.error("Error iniciando chat:", error);
 } finally {
@@ -57,91 +95,153 @@ setCargando(false);
 }
 };
 
-const enriquecerConversacionesConNombres = async (lista) => {
+const obtenerNombreUsuario = async (user, rolGuardado) => {
+try {
+if (rolGuardado === "comprador") {
+const { data, error } = await supabase
+.from("compradores")
+.select("auth_user_id, email, nombre");
+
+if (error) {
+console.error("Error cargando comprador actual:", error);
+return user.email;
+}
+
+const compradorActual = (data || []).find(
+(item) =>
+item.auth_user_id === user.id ||
+normalizarEmail(item.email) === normalizarEmail(user.email)
+);
+
+return compradorActual?.nombre || user.email;
+}
+
+if (rolGuardado === "proveedor") {
+const { data, error } = await supabase
+.from("proveedores")
+.select("id, email, nombre, contacto");
+
+if (error) {
+console.error("Error cargando proveedor actual:", error);
+return user.email;
+}
+
+const proveedorActual = (data || []).find(
+(item) => normalizarEmail(item.email) === normalizarEmail(user.email)
+);
+
+return proveedorActual?.nombre || proveedorActual?.contacto || user.email;
+}
+
+return user.email;
+} catch (error) {
+console.error("Error obteniendo nombre de usuario:", error);
+return user?.email || "";
+}
+};
+
+const enriquecerConversaciones = async (lista) => {
 try {
 if (!lista || lista.length === 0) return [];
 
 const proveedorIds = [
 ...new Set(lista.map((c) => c.proveedor_id).filter(Boolean)),
 ];
-
-const compradorEmails = [
-...new Set(lista.map((c) => c.comprador_email).filter(Boolean)),
+const compradorIds = [
+...new Set(lista.map((c) => c.comprador_id).filter(Boolean)),
 ];
 
 let mapaProveedores = {};
 let mapaCompradores = {};
 
 if (proveedorIds.length > 0) {
-const { data: proveedoresData, error: proveedoresError } = await supabase
+const { data, error } = await supabase
 .from("proveedores")
-.select("id, nombre, email, contacto")
+.select("id, nombre, contacto, email")
 .in("id", proveedorIds);
 
-if (proveedoresError) {
-console.error("Error cargando nombres de proveedores:", proveedoresError);
+if (error) {
+console.error("Error cargando proveedores para chat:", error);
 } else {
-mapaProveedores = (proveedoresData || []).reduce((acc, item) => {
+mapaProveedores = (data || []).reduce((acc, item) => {
 acc[item.id] = item;
 return acc;
 }, {});
 }
 }
 
-if (compradorEmails.length > 0) {
-const { data: compradoresData, error: compradoresError } = await supabase
+if (compradorIds.length > 0) {
+const { data, error } = await supabase
 .from("compradores")
-.select("email, nombre, contacto")
-.in("email", compradorEmails);
+.select("auth_user_id, nombre, email")
+.in("auth_user_id", compradorIds);
 
-if (compradoresError) {
-console.error("Error cargando nombres de compradores:", compradoresError);
+if (error) {
+console.error("Error cargando compradores para chat:", error);
 } else {
-mapaCompradores = (compradoresData || []).reduce((acc, item) => {
-acc[item.email] = item;
+mapaCompradores = (data || []).reduce((acc, item) => {
+acc[item.auth_user_id] = item;
 return acc;
 }, {});
 }
 }
 
-return lista.map((conv) => {
-const proveedorInfo = mapaProveedores[conv.proveedor_id];
-const compradorInfo = mapaCompradores[conv.comprador_email];
-
-return {
+return lista.map((conv) => ({
 ...conv,
 proveedor_nombre:
-proveedorInfo?.nombre ||
-proveedorInfo?.contacto ||
+conv.proveedor_nombre ||
+mapaProveedores[conv.proveedor_id]?.nombre ||
+mapaProveedores[conv.proveedor_id]?.contacto ||
 conv.proveedor_email,
 comprador_nombre:
-compradorInfo?.nombre ||
-compradorInfo?.contacto ||
+conv.comprador_nombre ||
+mapaCompradores[conv.comprador_id]?.nombre ||
 conv.comprador_email,
-};
-});
+}));
 } catch (error) {
 console.error("Error enriqueciendo conversaciones:", error);
 return lista;
 }
 };
 
-const cargarConversaciones = async () => {
+const obtenerRequerimientoActual = async (requerimientoId) => {
 try {
-if (!usuario?.email) return;
+if (!requerimientoId) return null;
 
-const rolGuardado = localStorage.getItem("rol") || "";
-setRol(rolGuardado);
+const { data, error } = await supabase
+.from("requerimientos")
+.select("*")
+.eq("id", requerimientoId)
+.maybeSingle();
+
+if (error) {
+console.error("Error cargando requerimiento:", error);
+return null;
+}
+
+return data || null;
+} catch (error) {
+console.error("Error general cargando requerimiento:", error);
+return null;
+}
+};
+
+const cargarConversaciones = async (userParam, rolParam) => {
+try {
+const user = userParam || usuario;
+const rolActual = rolParam || rol;
+
+if (!user?.email) return;
 
 let query = supabase
 .from("conversaciones")
 .select("*")
 .order("created_at", { ascending: false });
 
-if (rolGuardado === "proveedor") {
-query = query.eq("proveedor_email", usuario.email);
+if (rolActual === "proveedor") {
+query = query.eq("proveedor_email", user.email);
 } else {
-query = query.eq("comprador_email", usuario.email);
+query = query.eq("comprador_email", user.email);
 }
 
 const { data, error } = await query;
@@ -151,47 +251,14 @@ console.error("Error cargando conversaciones:", error);
 return;
 }
 
-const conversacionesEnriquecidas = await enriquecerConversacionesConNombres(
-data || []
-);
+const enriquecidas = await enriquecerConversaciones(data || []);
+setConversaciones(enriquecidas);
 
-setConversaciones(conversacionesEnriquecidas);
+if (conversacionActiva?.id) return;
 
-if (
-rolGuardado === "comprador" &&
-proveedorEmailParam &&
-proveedorIdParam
-) {
-const existente = conversacionesEnriquecidas.find(
-(c) =>
-c.comprador_email === usuario.email &&
-c.proveedor_email === proveedorEmailParam
-);
-
-if (existente) {
-setConversacionActiva(existente);
-await cargarMensajes(existente.id);
-return;
-}
-
-setConversacionActiva({
-id: null,
-comprador_email: usuario.email,
-proveedor_email: proveedorEmailParam,
-proveedor_id: proveedorIdParam,
-proveedor_nombre: proveedorNombreParam || proveedorEmailParam,
-comprador_nombre: usuario.email,
-requerimiento_id: requerimientoIdParam || null,
-requerimiento_nombre: requerimientoNombreParam || null,
-creada_virtualmente: true,
-});
-setMensajes([]);
-return;
-}
-
-if (conversacionesEnriquecidas.length > 0) {
-setConversacionActiva(conversacionesEnriquecidas[0]);
-await cargarMensajes(conversacionesEnriquecidas[0].id);
+if (enriquecidas.length > 0) {
+setConversacionActiva(enriquecidas[0]);
+await cargarMensajes(enriquecidas[0].id);
 } else {
 setConversacionActiva(null);
 setMensajes([]);
@@ -219,99 +286,101 @@ console.error("Error cargando mensajes:", error);
 return;
 }
 
-setMensajes(data || []);
+setMensajes([...(data || [])]);
 } catch (error) {
 console.error("Error general cargando mensajes:", error);
 }
 };
 
-const seleccionarConversacion = async (conversacion) => {
-setConversacionActiva(conversacion);
-await cargarMensajes(conversacion.id);
-};
-
-const crearOReutilizarConversacionSiHaceFalta = async () => {
-if (!usuario?.email || !conversacionActiva) return null;
-
-if (conversacionActiva.id) {
-return conversacionActiva.id;
-}
+const abrirConversacionDesdeRequerimiento = async (user, nombreComprador) => {
+try {
+const requerimiento = await obtenerRequerimientoActual(requerimientoIdParam);
 
 const { data: existente, error: errorBusqueda } = await supabase
 .from("conversaciones")
 .select("*")
-.eq("comprador_email", usuario.email)
-.eq("proveedor_email", conversacionActiva.proveedor_email)
+.eq("comprador_email", user.email)
+.eq("proveedor_email", proveedorEmailParam)
+.eq("requerimiento_id", requerimientoIdParam)
 .maybeSingle();
 
+let conv = existente;
+
 if (errorBusqueda) {
-console.error("Error buscando conversación existente:", errorBusqueda);
-return null;
+console.error("Error buscando conversación exacta:", errorBusqueda);
+return;
 }
 
-if (existente) {
-const conversacionesActualizadas = await enriquecerConversacionesConNombres(
-[existente, ...conversaciones.filter((c) => c.id !== existente.id)]
-);
-
-setConversaciones(conversacionesActualizadas);
-const activa =
-conversacionesActualizadas.find((c) => c.id === existente.id) || existente;
-setConversacionActiva(activa);
-return existente.id;
-}
-
+if (!conv) {
 const { data: nuevaConversacion, error: errorCreacion } = await supabase
 .from("conversaciones")
 .insert([
 {
-comprador_email: usuario.email,
-proveedor_email: conversacionActiva.proveedor_email,
-proveedor_id: conversacionActiva.proveedor_id,
-requerimiento_id: conversacionActiva.requerimiento_id || null,
-requerimiento_nombre: conversacionActiva.requerimiento_nombre || null,
+comprador_id: user.id,
+comprador_email: user.email,
+comprador_nombre: nombreComprador || user.email,
+proveedor_email: proveedorEmailParam,
+proveedor_nombre: proveedorNombreParam || proveedorEmailParam,
+proveedor_id: proveedorIdParam,
+requerimiento_id: requerimientoIdParam,
+requerimiento_nombre:
+requerimiento?.nombre_requerimiento || requerimientoNombreParam,
 },
 ])
 .select()
 .single();
 
 if (errorCreacion) {
-console.error("Error creando conversación:", errorCreacion);
-
-const { data: reconsulta, error: errorReconsulta } = await supabase
-.from("conversaciones")
-.select("*")
-.eq("comprador_email", usuario.email)
-.eq("proveedor_email", conversacionActiva.proveedor_email)
-.maybeSingle();
-
-if (errorReconsulta || !reconsulta) {
-console.error("Error reconsultando conversación:", errorReconsulta);
-return null;
+console.error(
+"Error creando conversación desde requerimiento:",
+errorCreacion
+);
+return;
 }
 
-const conversacionesActualizadas = await enriquecerConversacionesConNombres(
-[reconsulta, ...conversaciones.filter((c) => c.id !== reconsulta.id)]
-);
+conv = nuevaConversacion;
 
-setConversaciones(conversacionesActualizadas);
-const activa =
-conversacionesActualizadas.find((c) => c.id === reconsulta.id) || reconsulta;
-setConversacionActiva(activa);
-return reconsulta.id;
+const textoInicial = `Hola, comparto este requerimiento: ${
+requerimiento?.nombre_requerimiento ||
+requerimientoNombreParam ||
+"Requerimiento"
+}${
+requerimiento?.descripcion
+? `\n\nDetalle: ${requerimiento.descripcion}`
+: ""
+}`;
+
+const { error: errorMensajeInicial } = await supabase
+.from("mensajes")
+.insert([
+{
+conversacion_id: conv.id,
+remitente_email: user.email,
+mensaje: textoInicial,
+archivo_url: requerimiento?.archivo_url || null,
+archivo_nombre: requerimiento?.archivo_nombre || null,
+},
+]);
+
+if (errorMensajeInicial) {
+console.error("Error creando mensaje inicial:", errorMensajeInicial);
+}
 }
 
-const conversacionesActualizadas = await enriquecerConversacionesConNombres(
-[nuevaConversacion, ...conversaciones]
-);
+const enriquecida = await enriquecerConversaciones([conv]);
+const conversacionLista = enriquecida[0] || conv;
 
-setConversaciones(conversacionesActualizadas);
-const activa =
-conversacionesActualizadas.find((c) => c.id === nuevaConversacion.id) ||
-nuevaConversacion;
-setConversacionActiva(activa);
+setConversacionActiva(conversacionLista);
+await cargarMensajes(conversacionLista.id);
+} catch (error) {
+console.error("Error abriendo conversación desde requerimiento:", error);
+}
+};
 
-return nuevaConversacion.id;
+const seleccionarConversacion = async (conversacion) => {
+setConversacionActiva(conversacion);
+setMensajes([]);
+await cargarMensajes(conversacion.id);
 };
 
 const subirArchivoChat = async (archivo, conversacionId) => {
@@ -334,7 +403,9 @@ console.error("Error subiendo archivo del chat:", error);
 throw error;
 }
 
-const { data } = supabase.storage.from("chat-archivos").getPublicUrl(ruta);
+const { data } = supabase.storage
+.from("chat-archivos")
+.getPublicUrl(ruta);
 
 return {
 archivo_url: data?.publicUrl || "",
@@ -345,21 +416,11 @@ archivo_nombre: archivo.name,
 const enviarMensaje = async () => {
 const texto = nuevoMensaje.trim();
 
-if (!texto && !archivoAdjunto) {
-return;
-}
-
-if (!conversacionActiva || !usuario?.email) return;
+if (!texto && !archivoAdjunto) return;
+if (!conversacionActiva?.id || !usuario?.email) return;
 
 try {
 setEnviando(true);
-
-const conversacionId = await crearOReutilizarConversacionSiHaceFalta();
-
-if (!conversacionId) {
-alert("No se pudo crear o recuperar la conversación");
-return;
-}
 
 let archivoPayload = {
 archivo_url: null,
@@ -367,12 +428,15 @@ archivo_nombre: null,
 };
 
 if (archivoAdjunto) {
-archivoPayload = await subirArchivoChat(archivoAdjunto, conversacionId);
+archivoPayload = await subirArchivoChat(
+archivoAdjunto,
+conversacionActiva.id
+);
 }
 
 const { error } = await supabase.from("mensajes").insert([
 {
-conversacion_id: conversacionId,
+conversacion_id: conversacionActiva.id,
 remitente_email: usuario.email,
 mensaje: texto || (archivoAdjunto ? "Adjunto enviado" : ""),
 archivo_url: archivoPayload.archivo_url,
@@ -388,8 +452,8 @@ return;
 
 setNuevoMensaje("");
 setArchivoAdjunto(null);
-await cargarMensajes(conversacionId);
-await cargarConversaciones();
+await cargarMensajes(conversacionActiva.id);
+await cargarConversaciones(usuario, rol);
 } catch (error) {
 console.error("Error general enviando mensaje:", error);
 alert("Ocurrió un error al enviar el mensaje o archivo");
@@ -398,7 +462,24 @@ setEnviando(false);
 }
 };
 
-const volverAlPanel = () => {
+const volverAContexto = () => {
+if (rol === "comprador" && requerimientoIdParam) {
+const params = new URLSearchParams();
+params.set("requerimiento_id", requerimientoIdParam);
+if (requerimientoNombreParam) {
+params.set("requerimiento_nombre", requerimientoNombreParam);
+}
+if (sectorParam) {
+params.set("sector", sectorParam);
+}
+if (categoriaParam) {
+params.set("categoria", categoriaParam);
+}
+
+navigate(`/proveedores?${params.toString()}`);
+return;
+}
+
 if (rol === "proveedor") {
 navigate("/panel-proveedor");
 return;
@@ -408,7 +489,9 @@ navigate("/panel-comprador");
 };
 
 const textoBotonVolver =
-rol === "proveedor"
+rol === "comprador" && requerimientoIdParam
+? "← Volver a proveedores"
+: rol === "proveedor"
 ? "← Volver al panel proveedor"
 : "← Volver al panel comprador";
 
@@ -416,50 +499,25 @@ const tituloConversacion = useMemo(() => {
 if (!conversacionActiva) return "Sin conversación activa";
 
 if (rol === "proveedor") {
-return conversacionActiva.comprador_nombre || conversacionActiva.comprador_email;
+return (
+conversacionActiva.comprador_nombre || conversacionActiva.comprador_email
+);
 }
 
 return (
-proveedorNombreParam ||
-conversacionActiva.proveedor_nombre ||
-conversacionActiva.proveedor_email
+conversacionActiva.proveedor_nombre || conversacionActiva.proveedor_email
 );
-}, [conversacionActiva, rol, proveedorNombreParam]);
+}, [conversacionActiva, rol]);
 
 const tituloRequerimiento = useMemo(() => {
 if (!conversacionActiva) return "";
-
-return (
-conversacionActiva.requerimiento_nombre ||
-requerimientoNombreParam ||
-""
-);
-}, [conversacionActiva, requerimientoNombreParam]);
-
-const cardStyle = {
-backgroundColor: "white",
-borderRadius: "18px",
-padding: esMovil ? "18px" : "24px",
-boxShadow: "0 8px 22px rgba(0,0,0,0.08)",
-borderLeft: "6px solid #3b82f6",
-borderRight: "6px solid #f59e0b",
-};
-
-const volverStyle = {
-backgroundColor: "#e5e7eb",
-color: "#1f3552",
-border: "none",
-padding: "10px 14px",
-borderRadius: "10px",
-fontWeight: "bold",
-cursor: "pointer",
-marginBottom: "16px",
-};
+return conversacionActiva.requerimiento_nombre || "";
+}, [conversacionActiva]);
 
 if (cargando) {
 return (
 <div style={cardStyle}>
-<button onClick={volverAlPanel} style={volverStyle}>
+<button onClick={volverAContexto} style={volverStyle}>
 {textoBotonVolver}
 </button>
 <p>Cargando chat...</p>
@@ -470,13 +528,11 @@ return (
 if (!usuario) {
 return (
 <div style={cardStyle}>
-<button onClick={volverAlPanel} style={volverStyle}>
+<button onClick={volverAContexto} style={volverStyle}>
 {textoBotonVolver}
 </button>
-
 <h2 style={{ marginTop: 0, color: "#1f3552" }}>Chat</h2>
 <p>Debes iniciar sesión para acceder a tus conversaciones.</p>
-
 <Link
 to="/acceso-comprador"
 style={{
@@ -498,14 +554,14 @@ Ir al acceso
 
 return (
 <div>
-<button onClick={volverAlPanel} style={volverStyle}>
+<button onClick={volverAContexto} style={volverStyle}>
 {textoBotonVolver}
 </button>
 
 <div
 style={{
 display: "grid",
-gridTemplateColumns: esMovil ? "1fr" : "300px 1fr",
+gridTemplateColumns: esMovil ? "1fr" : "320px 1fr",
 gap: "18px",
 }}
 >
@@ -571,12 +627,55 @@ Sobre: {conv.requerimiento_nombre}
 
 <div style={cardStyle}>
 <h2 style={{ marginTop: 0, color: "#1f3552" }}>Chat</h2>
+
+{conversaciones.length >= 1 && (
+<div style={{ marginBottom: "14px" }}>
+<label style={{ fontWeight: "bold", color: "#1f3552" }}>
+Cambiar conversación
+</label>
+
+<select
+value={conversacionActiva?.id || ""}
+onChange={(e) => {
+const conv = conversaciones.find(
+(c) => String(c.id) === String(e.target.value)
+);
+if (conv) seleccionarConversacion(conv);
+}}
+style={{
+width: "100%",
+padding: "10px",
+borderRadius: "10px",
+border: "1px solid #ccc",
+marginTop: "6px",
+}}
+>
+{conversaciones.map((c) => (
+<option key={c.id} value={c.id}>
+{(c.requerimiento_nombre || "Sin requerimiento") +
+" - " +
+(rol === "proveedor"
+? c.comprador_nombre || c.comprador_email
+: c.proveedor_nombre || c.proveedor_email)}
+</option>
+))}
+</select>
+</div>
+)}
+
 <p style={{ color: "#6b7280", marginBottom: "8px" }}>
 Chat con: <strong>{tituloConversacion}</strong>
 </p>
 
 {tituloRequerimiento ? (
-<p style={{ color: "#2563eb", fontWeight: "600", marginTop: 0, marginBottom: "16px" }}>
+<p
+style={{
+color: "#2563eb",
+fontWeight: "600",
+marginTop: 0,
+marginBottom: "16px",
+}}
+>
 Conversación sobre: {tituloRequerimiento}
 </p>
 ) : null}

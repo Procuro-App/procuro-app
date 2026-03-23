@@ -1,9 +1,41 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { supabase } from "../lib/supabase";
 import logo from "../assets/logo.png";
 
+const ADMIN_EMAILS = ["TU_CORREO_ADMIN_AQUI"];
+
 function Navbar() {
+const [mostrarAdmin, setMostrarAdmin] = useState(false);
+
 const isMobile =
 typeof window !== "undefined" ? window.innerWidth <= 768 : false;
+
+useEffect(() => {
+validarAdminVisible();
+}, []);
+
+const validarAdminVisible = async () => {
+try {
+const { data, error } = await supabase.auth.getUser();
+
+if (error) {
+console.error("Error validando admin en navbar:", error);
+setMostrarAdmin(false);
+return;
+}
+
+const email = String(data?.user?.email || "").trim().toLowerCase();
+const admins = ADMIN_EMAILS.map((item) =>
+String(item || "").trim().toLowerCase()
+);
+
+setMostrarAdmin(admins.includes(email));
+} catch (error) {
+console.error("Error general validando admin en navbar:", error);
+setMostrarAdmin(false);
+}
+};
 
 return (
 <nav
@@ -46,7 +78,7 @@ maxWidth: isMobile ? "100%" : "980px",
 display: "grid",
 gridTemplateColumns: isMobile
 ? "repeat(2, minmax(0, 1fr))"
-: "repeat(5, minmax(0, 1fr))",
+: `repeat(${mostrarAdmin ? 5 : 4}, minmax(0, 1fr))`,
 gap: isMobile ? "8px" : "10px",
 marginTop: 0,
 }}
@@ -67,6 +99,7 @@ Soy comprador
 Soy proveedor
 </Link>
 
+{mostrarAdmin ? (
 <Link
 to="/revision-proveedores"
 style={{
@@ -76,6 +109,7 @@ gridColumn: isMobile ? "1 / -1" : "auto",
 >
 Admin
 </Link>
+) : null}
 </div>
 </div>
 </nav>

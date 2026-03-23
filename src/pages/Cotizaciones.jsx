@@ -1,23 +1,26 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 
 function Cotizaciones() {
 const navigate = useNavigate();
+const [searchParams] = useSearchParams();
 
 const [usuario, setUsuario] = useState(null);
 const [cotizaciones, setCotizaciones] = useState([]);
 const [cargando, setCargando] = useState(true);
+const [nombreRequerimientoActual, setNombreRequerimientoActual] = useState("");
+
+const requerimientoId = searchParams.get("requerimiento_id") || "";
+const rol = localStorage.getItem("rol");
 
 useEffect(() => {
 cargarCotizaciones();
-}, []);
+}, [requerimientoId]);
 
 const cargarCotizaciones = async () => {
 try {
 setCargando(true);
-
-const rol = localStorage.getItem("rol");
 
 const { data: userData, error: userError } = await supabase.auth.getUser();
 
@@ -57,11 +60,17 @@ setCargando(false);
 return;
 }
 
-const { data: cotizacionesData, error: cotizacionesError } = await supabase
+let query = supabase
 .from("cotizaciones")
 .select("*")
 .eq("proveedor_nombre", proveedor.nombre)
 .order("created_at", { ascending: false });
+
+if (requerimientoId) {
+query = query.eq("requerimiento_id", requerimientoId);
+}
+
+const { data: cotizacionesData, error: cotizacionesError } = await query;
 
 if (cotizacionesError) {
 console.error("Error cargando cotizaciones del proveedor:", cotizacionesError);
@@ -70,23 +79,68 @@ return;
 }
 
 setCotizaciones(cotizacionesData || []);
-} else {
-const { data: requerimientosData, error: requerimientosError } = await supabase
-.from("requerimientos")
-.select("nombre_requerimiento")
-.eq("comprador_user_id", user.id);
 
-if (requerimientosError) {
-console.error("Error cargando requerimientos del comprador:", requerimientosError);
+if (requerimientoId) {
+await cargarNombreRequerimiento(requerimientoId);
+}
+} else {
+if (requerimientoId) {
+const { data: requerimientoData, error: requerimientoError } = await supabase
+.from("requerimientos")
+.select("*")
+.eq("id", requerimientoId)
+.eq("comprador_user_id", user.id)
+.maybeSingle();
+
+if (requerimientoError) {
+console.error("Error cargando requerimiento filtrado:", requerimientoError);
 setCargando(false);
 return;
 }
 
-const nombresRequerimientos = (requerimientosData || [])
-.map((r) => r.nombre_requerimiento)
+if (!requerimientoData) {
+setCotizaciones([]);
+setCargando(false);
+return;
+}
+
+setNombreRequerimientoActual(
+requerimientoData.nombre_requerimiento || ""
+);
+
+const { data: cotizacionesData, error: cotizacionesError } = await supabase
+.from("cotizaciones")
+.select("*")
+.eq("requerimiento_id", requerimientoId)
+.order("created_at", { ascending: false });
+
+if (cotizacionesError) {
+console.error("Error cargando cotizaciones del requerimiento:", cotizacionesError);
+setCargando(false);
+return;
+}
+
+setCotizaciones(cotizacionesData || []);
+} else {
+const { data: requerimientosData, error: requerimientosError } = await supabase
+.from("requerimientos")
+.select("id, nombre_requerimiento")
+.eq("comprador_user_id", user.id);
+
+if (requerimientosError) {
+console.error(
+"Error cargando requerimientos del comprador:",
+requerimientosError
+);
+setCargando(false);
+return;
+}
+
+const requerimientoIds = (requerimientosData || [])
+.map((r) => r.id)
 .filter(Boolean);
 
-if (nombresRequerimientos.length === 0) {
+if (requerimientoIds.length === 0) {
 setCotizaciones([]);
 setCargando(false);
 return;
@@ -95,7 +149,7 @@ return;
 const { data: cotizacionesData, error: cotizacionesError } = await supabase
 .from("cotizaciones")
 .select("*")
-.in("requerimiento_nombre", nombresRequerimientos)
+.in("requerimiento_id", requerimientoIds)
 .order("created_at", { ascending: false });
 
 if (cotizacionesError) {
@@ -106,6 +160,7 @@ return;
 
 setCotizaciones(cotizacionesData || []);
 }
+}
 } catch (error) {
 console.error("Error general cargando cotizaciones:", error);
 } finally {
@@ -113,23 +168,53 @@ setCargando(false);
 }
 };
 
-const volverSegunRol = () => {
-const rol = localStorage.getItem("rol");
+const cargarNombreRequerimiento = async (id) => {
+try {
+const { data, error } = await supabase
+.from("requerimientos")
+.select("nombre_requerimiento")
+.eq("id", id)
+.maybeSingle();
 
-if (rol === "proveedor") {
-navigate("/panel-proveedor");
-} else {
-navigate("/panel-comprador");
+if (error) {
+console.error("Error cargando nombre del requerimiento:", error);
+return;
+}
+
+setNombreRequerimientoActual(data?.nombre_requerimiento || "");
+} catch (error) {
+console.error("Error general cargando nombre del requerimiento:", error);
 }
 };
 
-const rol = localStorage.getItem("rol");
+const volverSegunRol = () => {
+if (rol === "proveedor") {
+navigate("/panel-proveedor");
+return;
+}
+
+if (requerimientoId) {
+navigate("/requerimientos");
+return;
+}
+
+navigate("/panel-comprador");
+};
+
+const irAComparador = () => {
+if (!requerimientoId) return;
+navigate(`/comparador-cotizaciones?requerimiento_id=${requerimientoId}`);
+};
+
+const hayComparables = useMemo(() => {
+return rol !== "proveedor" && requerimientoId && cotizaciones.length > 0;
+}, [rol, requerimientoId, cotizaciones.length]);
 
 const cardStyle = {
 backgroundColor: "white",
 borderRadius: "16px",
 padding: "20px",
-boxShadow: "0 4px 14px rgba(0,0,0,0.08)"
+boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
 };
 
 if (cargando) {
@@ -156,7 +241,7 @@ color: "white",
 textDecoration: "none",
 padding: "10px 14px",
 borderRadius: "8px",
-fontWeight: "bold"
+fontWeight: "bold",
 }}
 >
 Ir al acceso
@@ -177,18 +262,47 @@ border: "none",
 padding: "8px 12px",
 borderRadius: "8px",
 cursor: "pointer",
-fontWeight: "bold"
+fontWeight: "bold",
 }}
 >
 ← Volver
 </button>
 
-<h2>{rol === "proveedor" ? "Mis cotizaciones" : "Cotizaciones"}</h2>
+<h2>
+{rol === "proveedor"
+? "Mis cotizaciones"
+: requerimientoId
+? "Cotizaciones del requerimiento"
+: "Cotizaciones"}
+</h2>
+
 <p>
 {rol === "proveedor"
 ? "Aquí puedes revisar las cotizaciones que has enviado."
+: requerimientoId
+? `Aquí puedes revisar las cotizaciones recibidas para: ${
+nombreRequerimientoActual || "este requerimiento"
+}.`
 : "Aquí puedes revisar las cotizaciones recibidas para tus requerimientos."}
 </p>
+
+{hayComparables ? (
+<button
+onClick={irAComparador}
+style={{
+marginTop: "10px",
+backgroundColor: "#2563eb",
+color: "white",
+border: "none",
+padding: "10px 14px",
+borderRadius: "8px",
+cursor: "pointer",
+fontWeight: "bold",
+}}
+>
+Comparar cotizaciones
+</button>
+) : null}
 </div>
 
 <div style={cardStyle}>
@@ -200,7 +314,7 @@ style={{
 border: "1px solid #dcdcdc",
 borderRadius: "10px",
 padding: "15px",
-marginBottom: "12px"
+marginBottom: "12px",
 }}
 >
 <h3 style={{ marginTop: 0 }}>
@@ -215,14 +329,12 @@ marginBottom: "12px"
 )}
 
 <p>
-<strong>Estado:</strong>{" "}
-{c.estado || "No especificado"}
+<strong>Estado:</strong> {c.estado || "No especificado"}
 </p>
 
 {c.valor_referencial ? (
 <p>
-<strong>Valor referencial:</strong>{" "}
-{c.valor_referencial}
+<strong>Valor referencial:</strong> {c.valor_referencial}
 </p>
 ) : (
 <p>
@@ -269,7 +381,11 @@ Ver archivo
 </div>
 ))
 ) : (
-<p>No hay cotizaciones registradas todavía.</p>
+<p>
+{requerimientoId
+? "Aún no hay cotizaciones para este requerimiento."
+: "No hay cotizaciones registradas todavía."}
+</p>
 )}
 </div>
 </div>

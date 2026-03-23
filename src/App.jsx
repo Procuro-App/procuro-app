@@ -46,7 +46,7 @@ margin: "0 auto"
 <Route path="/requerimientos" element={<Requerimientos />} />
 <Route path="/cotizaciones" element={<Cotizaciones />} />
 <Route path="/comparador-cotizaciones" element={<ComparadorCotizaciones />} />
-<Route path="/enviar-cotizacion" element={<EnviarCotizacion />} />
+<Route path="/enviar-cotizacion/:id" element={<EnviarCotizacion />} />
 <Route path="/oportunidades" element={<Oportunidades />} />
 
 <Route path="/acceso-proveedor" element={<AccesoProveedor />} />
