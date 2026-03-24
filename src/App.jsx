@@ -26,14 +26,15 @@ return (
 <div
 style={{
 minHeight: "100vh",
-background: "linear-gradient(135deg, #f5f7fa, #e6eef8)",
-padding: "14px"
+background:
+"linear-gradient(135deg, #1e1e1e 0%, #2b2b2b 45%, #1f3552 100%)",
+padding: "14px",
 }}
 >
 <div
 style={{
 maxWidth: "1200px",
-margin: "0 auto"
+margin: "0 auto",
 }}
 >
 <Navbar />
@@ -45,7 +46,10 @@ margin: "0 auto"
 
 <Route path="/requerimientos" element={<Requerimientos />} />
 <Route path="/cotizaciones" element={<Cotizaciones />} />
-<Route path="/comparador-cotizaciones" element={<ComparadorCotizaciones />} />
+<Route
+path="/comparador-cotizaciones"
+element={<ComparadorCotizaciones />}
+/>
 <Route path="/enviar-cotizacion/:id" element={<EnviarCotizacion />} />
 <Route path="/oportunidades" element={<Oportunidades />} />
 
@@ -53,12 +57,18 @@ margin: "0 auto"
 <Route path="/acceso-comprador" element={<AccesoComprador />} />
 
 <Route path="/registro-proveedor" element={<RegistroProveedor />} />
-<Route path="/revision-proveedores" element={<RevisionProveedores />} />
+<Route
+path="/revision-proveedores"
+element={<RevisionProveedores />}
+/>
 
 <Route path="/panel-proveedor" element={<PanelProveedor />} />
 <Route path="/panel-comprador" element={<PanelComprador />} />
 
-<Route path="/mi-perfil-comprador" element={<MiPerfilComprador />} />
+<Route
+path="/mi-perfil-comprador"
+element={<MiPerfilComprador />}
+/>
 
 <Route path="/recuperar-password" element={<RecuperarPassword />} />
 <Route
