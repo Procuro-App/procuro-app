@@ -10,6 +10,7 @@ const [searchParams] = useSearchParams();
 const [proveedores, setProveedores] = useState([]);
 const [cargando, setCargando] = useState(true);
 const [busqueda, setBusqueda] = useState("");
+const [abriendoChatId, setAbriendoChatId] = useState("");
 
 const requerimientoId = searchParams.get("requerimiento_id") || "";
 const requerimientoNombre = searchParams.get("requerimiento_nombre") || "";
@@ -138,7 +139,7 @@ sectorDesdeRequerimiento,
 categoriaDesdeRequerimiento,
 ]);
 
-const abrirChatConProveedor = (proveedor) => {
+const abrirChatConProveedor = async (proveedor) => {
 if (!requerimientoId || !requerimientoNombre) {
 alert(
 "Para iniciar un chat, primero debes entrar desde un requerimiento."
@@ -146,19 +147,149 @@ alert(
 return;
 }
 
-const proveedorId = encodeURIComponent(proveedor.id || "");
-const proveedorEmail = encodeURIComponent(proveedor.email || "");
-const proveedorNombre = encodeURIComponent(
+try {
+setAbriendoChatId(proveedor.id || "cargando");
+
+const { data: userData, error: userError } = await supabase.auth.getUser();
+
+if (userError) {
+alert(`Error usuario autenticado: ${userError.message}`);
+return;
+}
+
+const user = userData?.user || null;
+
+if (!user?.email) {
+alert("Debes iniciar sesión como comprador.");
+return;
+}
+
+if (!proveedor?.email) {
+alert("Este proveedor no tiene email registrado.");
+return;
+}
+
+// 1. Leer requerimiento actual
+const { data: reqData, error: reqError } = await supabase
+.from("requerimientos")
+.select("*")
+.eq("id", requerimientoId)
+.maybeSingle();
+
+if (reqError) {
+alert(`Error leyendo requerimiento: ${reqError.message}`);
+return;
+}
+
+if (!reqData) {
+alert("No se encontró el requerimiento actual.");
+return;
+}
+
+// 2. Buscar conversación exacta
+let { data: conversacionExacta, error: errorBusqueda } = await supabase
+.from("conversaciones")
+.select("*")
+.eq("comprador_email", user.email)
+.eq("proveedor_email", proveedor.email)
+.eq("requerimiento_id", requerimientoId)
+.maybeSingle();
+
+if (errorBusqueda) {
+alert(`Error buscando conversación: ${errorBusqueda.message}`);
+return;
+}
+
+// 3. Si no existe, crearla
+if (!conversacionExacta) {
+const payload = {
+comprador_email: user.email,
+proveedor_email: proveedor.email,
+proveedor_nombre:
+proveedor.nombre || proveedor.contacto || proveedor.email,
+proveedor_id: proveedor.id || null,
+requerimiento_id: requerimientoId,
+requerimiento_nombre:
+reqData.nombre_requerimiento || requerimientoNombre,
+};
+
+const { data: creada, error: errorCreacion } = await supabase
+.from("conversaciones")
+.insert([payload])
+.select()
+.single();
+
+if (errorCreacion) {
+alert(`Error creando conversación: ${errorCreacion.message}`);
+return;
+}
+
+conversacionExacta = creada;
+}
+
+if (!conversacionExacta?.id) {
+alert("La conversación se creó vacía o sin id.");
+return;
+}
+
+// 4. Verificar mensaje inicial
+const { data: mensajesExistentes, error: mensajesError } = await supabase
+.from("mensajes")
+.select("id")
+.eq("conversacion_id", conversacionExacta.id);
+
+if (mensajesError) {
+alert(`Error revisando mensajes: ${mensajesError.message}`);
+return;
+}
+
+if (!mensajesExistentes || mensajesExistentes.length === 0) {
+const textoInicial = `Hola, comparto este requerimiento: ${
+reqData.nombre_requerimiento || requerimientoNombre
+}${reqData.descripcion ? `\n\nDetalle: ${reqData.descripcion}` : ""}`;
+
+const { error: errorMensajeInicial } = await supabase
+.from("mensajes")
+.insert([
+{
+conversacion_id: conversacionExacta.id,
+remitente_email: user.email,
+mensaje: textoInicial,
+archivo_url: reqData.archivo_url || null,
+archivo_nombre: reqData.archivo_nombre || null,
+},
+]);
+
+if (errorMensajeInicial) {
+alert(`Error creando mensaje inicial: ${errorMensajeInicial.message}`);
+return;
+}
+}
+
+const params = new URLSearchParams();
+params.set("conversacion_id", conversacionExacta.id);
+params.set("requerimiento_id", requerimientoId);
+params.set(
+"requerimiento_nombre",
+reqData.nombre_requerimiento || requerimientoNombre
+);
+params.set("proveedor_email", proveedor.email || "");
+params.set(
+"proveedor_nombre",
 proveedor.nombre || proveedor.contacto || proveedor.email || "Proveedor"
 );
-const reqId = encodeURIComponent(requerimientoId);
-const reqNombre = encodeURIComponent(requerimientoNombre);
-const sector = encodeURIComponent(sectorDesdeRequerimiento || "");
-const categoria = encodeURIComponent(categoriaDesdeRequerimiento || "");
+params.set("proveedor_id", proveedor.id || "");
+if (sectorDesdeRequerimiento) params.set("sector", sectorDesdeRequerimiento);
+if (categoriaDesdeRequerimiento) {
+params.set("categoria", categoriaDesdeRequerimiento);
+}
 
-navigate(
-`/chat?proveedor_id=${proveedorId}&proveedor_email=${proveedorEmail}&proveedor_nombre=${proveedorNombre}&requerimiento_id=${reqId}&requerimiento_nombre=${reqNombre}&sector=${sector}&categoria=${categoria}`
-);
+navigate(`/chat?${params.toString()}`);
+} catch (error) {
+alert(`Error general: ${error.message || "desconocido"}`);
+} finally {
+setAbriendoChatId("");
+}
 };
 
 const volverARequerimientos = () => {
@@ -493,6 +624,7 @@ Ver perfil
 {requerimientoId && requerimientoNombre ? (
 <button
 onClick={() => abrirChatConProveedor(p)}
+disabled={abriendoChatId === p.id}
 style={{
 backgroundColor: "#2563eb",
 color: "white",
@@ -501,9 +633,12 @@ padding: "10px 14px",
 borderRadius: "8px",
 cursor: "pointer",
 fontWeight: "bold",
+opacity: abriendoChatId === p.id ? 0.7 : 1,
 }}
 >
-Contactar proveedor para este requerimiento
+{abriendoChatId === p.id
+? "Abriendo chat..."
+: "Contactar proveedor para este requerimiento"}
 </button>
 ) : (
 <button

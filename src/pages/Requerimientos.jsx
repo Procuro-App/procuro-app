@@ -109,7 +109,8 @@ alert("Debes iniciar sesión como comprador para crear requerimientos.");
 return;
 }
 
-if (!nombreRequerimiento || !cobertura || !pais || !sector || !categoria) {
+// categoría ya NO es obligatoria
+if (!nombreRequerimiento || !cobertura || !pais || !sector) {
 alert("Completa los campos obligatorios");
 return;
 }
@@ -147,7 +148,7 @@ pais,
 provincia,
 ciudad,
 sector,
-categoria,
+categoria: categoria || null,
 descripcion,
 estado: "Abierto",
 comprador_email: usuario.email,
@@ -190,11 +191,10 @@ setGuardando(false);
 
 const abrirProveedoresParaRequerimiento = (req) => {
 const titulo = encodeURIComponent(req.nombre_requerimiento || "");
-const categoriaReq = encodeURIComponent(req.categoria || "");
 const sectorReq = encodeURIComponent(req.sector || "");
 
 navigate(
-`/proveedores?requerimiento_id=${req.id}&requerimiento_nombre=${titulo}&categoria=${categoriaReq}&sector=${sectorReq}`
+`/proveedores?requerimiento_id=${req.id}&requerimiento_nombre=${titulo}&sector=${sectorReq}`
 );
 };
 
@@ -398,7 +398,7 @@ border: "1px solid #ccc",
 backgroundColor: sector ? "white" : "#f3f3f3",
 }}
 >
-<option value="">Categoría</option>
+<option value="">Categoría (opcional)</option>
 {categoriasDisponibles.map((item) => (
 <option key={item} value={item}>
 {item}
