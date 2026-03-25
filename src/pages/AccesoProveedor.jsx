@@ -354,7 +354,7 @@ Iniciar sesión
 onClick={() => setModo("registro")}
 style={tabStyle(modo === "registro")}
 >
-Crear cuenta
+Registrarse
 </button>
 </div>
 
