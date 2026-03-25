@@ -12,6 +12,9 @@ const [cotizacionesEnviadas, setCotizacionesEnviadas] = useState([]);
 const [busqueda, setBusqueda] = useState("");
 const [cargando, setCargando] = useState(true);
 
+const isMobile =
+typeof window !== "undefined" ? window.innerWidth <= 768 : false;
+
 useEffect(() => {
 cargarDatos();
 }, []);
@@ -139,21 +142,43 @@ requerimiento: req,
 });
 };
 
+const paginaStyle = {
+minHeight: "100vh",
+background:
+"linear-gradient(135deg, #111827 0%, #1f2937 38%, #1f3552 72%, #0f172a 100%)",
+padding: isMobile ? "16px" : "30px",
+};
+
 const cardPrincipal = {
-background: "linear-gradient(135deg, #f8f5ef 0%, #f2ede3 100%)",
-borderRadius: "18px",
-padding: "24px",
-boxShadow: "0 10px 28px rgba(0,0,0,0.18)",
-border: "1px solid rgba(249, 115, 22, 0.18)",
-marginBottom: "18px",
+background:
+"linear-gradient(135deg, rgba(245,239,230,0.98), rgba(241,233,221,0.96))",
+borderRadius: "24px",
+padding: isMobile ? "22px 18px" : "30px 32px",
+boxShadow: "0 18px 40px rgba(0,0,0,0.22)",
+border: "1px solid rgba(249, 115, 22, 0.16)",
+marginBottom: "20px",
+position: "relative",
+overflow: "hidden",
 };
 
 const cardSecundaria = {
 background: "#f8f5ef",
-borderRadius: "16px",
-padding: "20px",
-boxShadow: "0 8px 22px rgba(0,0,0,0.14)",
+borderRadius: "20px",
+padding: isMobile ? "20px 16px" : "24px",
+boxShadow: "0 12px 26px rgba(0,0,0,0.18)",
 border: "1px solid rgba(31,53,82,0.10)",
+};
+
+const cardItem = {
+background: "white",
+border: "1px solid #e5e7eb",
+borderRadius: "16px",
+padding: "18px",
+boxShadow: "0 6px 14px rgba(0,0,0,0.06)",
+display: "flex",
+flexDirection: "column",
+justifyContent: "space-between",
+minHeight: "330px",
 };
 
 const botonVolver = {
@@ -163,7 +188,7 @@ border: "none",
 padding: "8px 12px",
 borderRadius: "8px",
 cursor: "pointer",
-fontWeight: "bold",
+fontWeight: "700",
 };
 
 const botonPrincipal = {
@@ -171,11 +196,11 @@ background: "linear-gradient(135deg, #f97316, #ea580c)",
 color: "white",
 border: "none",
 padding: "12px 16px",
-borderRadius: "10px",
+borderRadius: "12px",
 cursor: "pointer",
-fontWeight: "bold",
+fontWeight: "700",
 fontSize: "14px",
-boxShadow: "0 6px 14px rgba(249,115,22,0.28)",
+boxShadow: "0 8px 16px rgba(249,115,22,0.20)",
 width: "100%",
 };
 
@@ -184,11 +209,22 @@ background: "#d1d5db",
 color: "#4b5563",
 border: "none",
 padding: "12px 16px",
-borderRadius: "10px",
+borderRadius: "12px",
 cursor: "not-allowed",
-fontWeight: "bold",
+fontWeight: "700",
 fontSize: "14px",
 width: "100%",
+};
+
+const inputStyle = {
+width: "100%",
+padding: "13px 14px",
+borderRadius: "12px",
+border: "1px solid #d1d5db",
+boxSizing: "border-box",
+fontSize: "14px",
+backgroundColor: "white",
+color: "#111827",
 };
 
 const badgeEnviada = {
@@ -198,7 +234,7 @@ borderRadius: "999px",
 backgroundColor: "#d1fae5",
 color: "#065f46",
 fontSize: "12px",
-fontWeight: "bold",
+fontWeight: "700",
 };
 
 if (cargando) {
@@ -225,12 +261,25 @@ return (
 }
 
 return (
-<div>
+<div style={paginaStyle}>
 <button onClick={() => navigate("/panel-proveedor")} style={botonVolver}>
 ← Volver al panel proveedor
 </button>
 
 <div style={cardPrincipal}>
+<div
+style={{
+position: "absolute",
+top: "-30px",
+right: "-20px",
+width: "150px",
+height: "150px",
+background:
+"radial-gradient(circle, rgba(249,115,22,0.18) 0%, rgba(249,115,22,0) 72%)",
+pointerEvents: "none",
+}}
+/>
+
 <p
 style={{
 margin: 0,
@@ -239,6 +288,8 @@ fontWeight: "800",
 textTransform: "uppercase",
 letterSpacing: "0.08em",
 fontSize: "12px",
+position: "relative",
+zIndex: 1,
 }}
 >
 Oportunidades
@@ -246,10 +297,13 @@ Oportunidades
 
 <h1
 style={{
-margin: "8px 0 0 0",
-fontSize: "30px",
+margin: "10px 0 8px 0",
+fontSize: isMobile ? "24px" : "30px",
 color: "#1f3552",
-fontWeight: "800",
+fontWeight: "700",
+lineHeight: 1.25,
+position: "relative",
+zIndex: 1,
 }}
 >
 Requerimientos disponibles para tu sector
@@ -257,10 +311,14 @@ Requerimientos disponibles para tu sector
 
 <p
 style={{
-marginTop: "8px",
+marginTop: 0,
 marginBottom: 0,
 color: "#5b6472",
-lineHeight: 1.5,
+lineHeight: 1.65,
+fontSize: isMobile ? "14px" : "16px",
+maxWidth: "840px",
+position: "relative",
+zIndex: 1,
 }}
 >
 Aquí ves requerimientos alineados a tu sector principal. Desde aquí
@@ -282,7 +340,7 @@ borderRadius: "999px",
 backgroundColor: "#dbeafe",
 color: "#1d4ed8",
 fontSize: "12px",
-fontWeight: "bold",
+fontWeight: "700",
 }}
 >
 Sector del proveedor: {proveedor?.sector || "No definido"}
@@ -296,12 +354,7 @@ type="text"
 placeholder="Buscar por nombre del requerimiento, sector, categoría o descripción"
 value={busqueda}
 onChange={(e) => setBusqueda(e.target.value)}
-style={{
-width: "100%",
-padding: "12px",
-borderRadius: "10px",
-border: "1px solid #ccc",
-}}
+style={inputStyle}
 />
 </div>
 
@@ -309,7 +362,9 @@ border: "1px solid #ccc",
 <div
 style={{
 display: "grid",
-gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+gridTemplateColumns: isMobile
+? "1fr"
+: "repeat(auto-fit, minmax(300px, 1fr))",
 gap: "14px",
 }}
 >
@@ -317,16 +372,7 @@ gap: "14px",
 const enviada = yaFueCotizado(r);
 
 return (
-<div
-key={r.id}
-style={{
-...cardSecundaria,
-display: "flex",
-flexDirection: "column",
-justifyContent: "space-between",
-minHeight: "320px",
-}}
->
+<div key={r.id} style={cardItem}>
 <div>
 <div
 style={{
@@ -342,6 +388,7 @@ style={{
 margin: 0,
 color: "#1f3552",
 fontSize: "20px",
+fontWeight: "700",
 }}
 >
 {r.nombre_requerimiento || "Requerimiento sin nombre"}
@@ -369,7 +416,13 @@ fontSize: "20px",
 </p>
 
 {r.descripcion ? (
-<p style={{ margin: "10px 0 0 0", color: "#5b6472", lineHeight: 1.55 }}>
+<p
+style={{
+margin: "10px 0 0 0",
+color: "#5b6472",
+lineHeight: 1.6,
+}}
+>
 <strong>Detalle:</strong> {r.descripcion}
 </p>
 ) : null}
@@ -420,7 +473,7 @@ Enviar cotización
 </div>
 ) : (
 <div style={cardSecundaria}>
-<p style={{ margin: 0, fontWeight: "bold" }}>
+<p style={{ margin: 0, fontWeight: "700" }}>
 No hay oportunidades disponibles para este criterio.
 </p>
 <p style={{ margin: "6px 0 0 0", color: "#6b7280" }}>
