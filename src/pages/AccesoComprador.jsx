@@ -53,20 +53,41 @@ setCargando(true);
 
 const correoLimpio = email.trim().toLowerCase();
 
-const { error } = await supabase.auth.signUp({
+const { data, error } = await supabase.auth.signUp({
 email: correoLimpio,
 password,
 });
 
 if (error) {
 console.error("Error creando cuenta comprador:", error);
+
+if (
+error.message?.toLowerCase().includes("already registered") ||
+error.message?.toLowerCase().includes("already been registered") ||
+error.message?.toLowerCase().includes("user already registered")
+) {
+alert("Este correo ya está registrado. Inicia sesión.");
+setModo("login");
+} else {
 alert(`No fue posible crear la cuenta: ${error.message}`);
+}
+return;
+}
+
+if (
+data?.user &&
+Array.isArray(data.user.identities) &&
+data.user.identities.length === 0
+) {
+alert("Este correo ya está registrado. Inicia sesión.");
+setModo("login");
 return;
 }
 
 alert(
 "Cuenta de comprador creada correctamente. Revisa tu correo para confirmarla."
 );
+setModo("login");
 } catch (err) {
 console.error("Error inesperado registrando comprador:", err);
 alert("Ocurrió un error al registrarte");
