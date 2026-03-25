@@ -1,22 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 
 function Cotizaciones() {
 const navigate = useNavigate();
-const [searchParams] = useSearchParams();
 
 const [usuario, setUsuario] = useState(null);
 const [cotizaciones, setCotizaciones] = useState([]);
 const [cargando, setCargando] = useState(true);
-const [nombreRequerimientoActual, setNombreRequerimientoActual] = useState("");
-
-const requerimientoId = searchParams.get("requerimiento_id") || "";
-const rol = localStorage.getItem("rol");
+const [busqueda, setBusqueda] = useState("");
 
 useEffect(() => {
 cargarCotizaciones();
-}, [requerimientoId]);
+}, []);
+
+const rol = localStorage.getItem("rol") || "";
+
+const textoSeguro = (valor) => String(valor || "").trim().toLowerCase();
 
 const cargarCotizaciones = async () => {
 try {
@@ -33,105 +33,69 @@ return;
 const user = userData?.user || null;
 setUsuario(user);
 
-if (!user?.id && !user?.email) {
+if (!user?.email && !user?.id) {
+setCotizaciones([]);
 setCargando(false);
 return;
 }
 
 if (rol === "proveedor") {
-const { data: proveedoresData, error: proveedorError } = await supabase
+const { data: proveedorData, error: proveedorError } = await supabase
 .from("proveedores")
 .select("*")
 .eq("email", user.email)
-.order("created_at", { ascending: false })
-.limit(1);
+.maybeSingle();
 
 if (proveedorError) {
 console.error("Error cargando proveedor:", proveedorError);
-setCargando(false);
-return;
-}
-
-const proveedor = proveedoresData?.[0] || null;
-
-if (!proveedor?.nombre) {
 setCotizaciones([]);
 setCargando(false);
 return;
 }
 
-let query = supabase
-.from("cotizaciones")
-.select("*")
-.eq("proveedor_nombre", proveedor.nombre)
-.order("created_at", { ascending: false });
+const nombreProveedor = proveedorData?.nombre || "";
+const contactoProveedor = proveedorData?.contacto || "";
+const emailProveedor = proveedorData?.email || user.email || "";
 
-if (requerimientoId) {
-query = query.eq("requerimiento_id", requerimientoId);
-}
+const filtros = [
+nombreProveedor ? `proveedor_nombre.eq.${nombreProveedor}` : null,
+contactoProveedor ? `contacto.eq.${contactoProveedor}` : null,
+emailProveedor ? `email.eq.${emailProveedor}` : null,
+]
+.filter(Boolean)
+.join(",");
 
-const { data: cotizacionesData, error: cotizacionesError } = await query;
-
-if (cotizacionesError) {
-console.error("Error cargando cotizaciones del proveedor:", cotizacionesError);
-setCargando(false);
-return;
-}
-
-setCotizaciones(cotizacionesData || []);
-
-if (requerimientoId) {
-await cargarNombreRequerimiento(requerimientoId);
-}
-} else {
-if (requerimientoId) {
-const { data: requerimientoData, error: requerimientoError } = await supabase
-.from("requerimientos")
-.select("*")
-.eq("id", requerimientoId)
-.eq("comprador_user_id", user.id)
-.maybeSingle();
-
-if (requerimientoError) {
-console.error("Error cargando requerimiento filtrado:", requerimientoError);
-setCargando(false);
-return;
-}
-
-if (!requerimientoData) {
+if (!filtros) {
 setCotizaciones([]);
 setCargando(false);
 return;
 }
 
-setNombreRequerimientoActual(
-requerimientoData.nombre_requerimiento || ""
-);
-
-const { data: cotizacionesData, error: cotizacionesError } = await supabase
+const { data: cotizacionesData, error: cotizacionesError } =
+await supabase
 .from("cotizaciones")
 .select("*")
-.eq("requerimiento_id", requerimientoId)
+.or(filtros)
 .order("created_at", { ascending: false });
 
 if (cotizacionesError) {
-console.error("Error cargando cotizaciones del requerimiento:", cotizacionesError);
+console.error("Error cargando cotizaciones proveedor:", cotizacionesError);
+setCotizaciones([]);
 setCargando(false);
 return;
 }
 
 setCotizaciones(cotizacionesData || []);
 } else {
-const { data: requerimientosData, error: requerimientosError } = await supabase
+const { data: requerimientosData, error: requerimientosError } =
+await supabase
 .from("requerimientos")
 .select("id, nombre_requerimiento")
 .eq("comprador_user_id", user.id);
 
 if (requerimientosError) {
-console.error(
-"Error cargando requerimientos del comprador:",
-requerimientosError
-);
+console.error("Error cargando requerimientos del comprador:", requerimientosError);
+setCotizaciones([]);
 setCargando(false);
 return;
 }
@@ -140,86 +104,164 @@ const requerimientoIds = (requerimientosData || [])
 .map((r) => r.id)
 .filter(Boolean);
 
-if (requerimientoIds.length === 0) {
-setCotizaciones([]);
-setCargando(false);
-return;
-}
+const requerimientoNombres = (requerimientosData || [])
+.map((r) => r.nombre_requerimiento)
+.filter(Boolean);
 
-const { data: cotizacionesData, error: cotizacionesError } = await supabase
+let cotizacionesData = [];
+
+if (requerimientoIds.length > 0) {
+const { data, error } = await supabase
 .from("cotizaciones")
 .select("*")
 .in("requerimiento_id", requerimientoIds)
 .order("created_at", { ascending: false });
 
-if (cotizacionesError) {
-console.error("Error cargando cotizaciones del comprador:", cotizacionesError);
+if (!error) {
+cotizacionesData = data || [];
+}
+}
+
+if (cotizacionesData.length === 0 && requerimientoNombres.length > 0) {
+const { data, error } = await supabase
+.from("cotizaciones")
+.select("*")
+.in("requerimiento_nombre", requerimientoNombres)
+.order("created_at", { ascending: false });
+
+if (error) {
+console.error("Error cargando cotizaciones comprador:", error);
+setCotizaciones([]);
 setCargando(false);
 return;
+}
+
+cotizacionesData = data || [];
 }
 
 setCotizaciones(cotizacionesData || []);
 }
-}
 } catch (error) {
 console.error("Error general cargando cotizaciones:", error);
+setCotizaciones([]);
 } finally {
 setCargando(false);
-}
-};
-
-const cargarNombreRequerimiento = async (id) => {
-try {
-const { data, error } = await supabase
-.from("requerimientos")
-.select("nombre_requerimiento")
-.eq("id", id)
-.maybeSingle();
-
-if (error) {
-console.error("Error cargando nombre del requerimiento:", error);
-return;
-}
-
-setNombreRequerimientoActual(data?.nombre_requerimiento || "");
-} catch (error) {
-console.error("Error general cargando nombre del requerimiento:", error);
 }
 };
 
 const volverSegunRol = () => {
 if (rol === "proveedor") {
 navigate("/panel-proveedor");
-return;
-}
-
-if (requerimientoId) {
-navigate("/requerimientos");
-return;
-}
-
+} else {
 navigate("/panel-comprador");
+}
 };
 
-const irAComparador = () => {
-if (!requerimientoId) return;
-navigate(`/comparador-cotizaciones?requerimiento_id=${requerimientoId}`);
+const cotizacionesFiltradas = useMemo(() => {
+if (!busqueda.trim()) return cotizaciones;
+
+const q = textoSeguro(busqueda);
+
+return cotizaciones.filter((c) => {
+const campos = [
+c.requerimiento_nombre,
+c.proveedor_nombre,
+c.estado,
+c.valor_referencial,
+c.contacto,
+c.email,
+c.telefono,
+c.mensaje,
+]
+.map((x) => textoSeguro(x))
+.join(" ");
+
+return campos.includes(q);
+});
+}, [cotizaciones, busqueda]);
+
+const resumen = useMemo(() => {
+const total = cotizaciones.length;
+const enviadas = cotizaciones.filter(
+(c) => textoSeguro(c.estado) === "enviada"
+).length;
+const conArchivo = cotizaciones.filter((c) => !!c.archivo_url).length;
+const conValor = cotizaciones.filter((c) => !!c.valor_referencial).length;
+
+return {
+total,
+enviadas,
+conArchivo,
+conValor,
+};
+}, [cotizaciones]);
+
+const badgeEstado = (estado) => {
+const estadoTexto = textoSeguro(estado);
+
+let fondo = "#e5e7eb";
+let color = "#374151";
+let texto = estado || "Sin estado";
+
+if (estadoTexto === "enviada") {
+fondo = "#d1fae5";
+color = "#065f46";
+texto = "Enviada";
+} else if (estadoTexto === "pendiente") {
+fondo = "#fef3c7";
+color = "#92400e";
+texto = "Pendiente";
+} else if (estadoTexto === "rechazada") {
+fondo = "#fee2e2";
+color = "#991b1b";
+texto = "Rechazada";
+}
+
+return (
+<span
+style={{
+display: "inline-block",
+padding: "6px 10px",
+borderRadius: "999px",
+backgroundColor: fondo,
+color,
+fontSize: "12px",
+fontWeight: "bold",
+}}
+>
+{texto}
+</span>
+);
 };
 
-const hayComparables = useMemo(() => {
-return rol !== "proveedor" && requerimientoId && cotizaciones.length > 0;
-}, [rol, requerimientoId, cotizaciones.length]);
+const cardPrincipal = {
+background: "linear-gradient(135deg, #f8f5ef 0%, #f2ede3 100%)",
+borderRadius: "18px",
+padding: "24px",
+boxShadow: "0 10px 28px rgba(0,0,0,0.18)",
+border: "1px solid rgba(249, 115, 22, 0.18)",
+marginBottom: "18px",
+};
 
-const cardStyle = {
-backgroundColor: "white",
+const cardSecundaria = {
+background: "#f8f5ef",
 borderRadius: "16px",
 padding: "20px",
-boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
+boxShadow: "0 8px 22px rgba(0,0,0,0.14)",
+border: "1px solid rgba(31,53,82,0.10)",
+};
+
+const miniCard = {
+background: "white",
+borderRadius: "14px",
+padding: "16px",
+boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
+border: "1px solid #ececec",
 };
 
 if (cargando) {
 return (
-<div style={cardStyle}>
+<div style={cardSecundaria}>
 <p>Cargando cotizaciones...</p>
 </div>
 );
@@ -227,7 +269,7 @@ return (
 
 if (!usuario) {
 return (
-<div style={cardStyle}>
+<div style={cardSecundaria}>
 <h2>Cotizaciones</h2>
 <p>Debes iniciar sesión para ver tus cotizaciones.</p>
 
@@ -252,11 +294,10 @@ Ir al acceso
 
 return (
 <div>
-<div style={{ ...cardStyle, marginBottom: "20px" }}>
 <button
 onClick={volverSegunRol}
 style={{
-marginBottom: "12px",
+marginBottom: "16px",
 backgroundColor: "#e5e7eb",
 border: "none",
 padding: "8px 12px",
@@ -268,124 +309,324 @@ fontWeight: "bold",
 ← Volver
 </button>
 
-<h2>
-{rol === "proveedor"
-? "Mis cotizaciones"
-: requerimientoId
-? "Cotizaciones del requerimiento"
-: "Cotizaciones"}
-</h2>
-
-<p>
-{rol === "proveedor"
-? "Aquí puedes revisar las cotizaciones que has enviado."
-: requerimientoId
-? `Aquí puedes revisar las cotizaciones recibidas para: ${
-nombreRequerimientoActual || "este requerimiento"
-}.`
-: "Aquí puedes revisar las cotizaciones recibidas para tus requerimientos."}
-</p>
-
-{hayComparables ? (
-<button
-onClick={irAComparador}
+<div style={cardPrincipal}>
+<p
 style={{
-marginTop: "10px",
-backgroundColor: "#2563eb",
-color: "white",
-border: "none",
-padding: "10px 14px",
-borderRadius: "8px",
-cursor: "pointer",
-fontWeight: "bold",
+margin: 0,
+color: "#f97316",
+fontWeight: "800",
+textTransform: "uppercase",
+letterSpacing: "0.08em",
+fontSize: "12px",
 }}
 >
-Comparar cotizaciones
-</button>
-) : null}
+{rol === "proveedor" ? "Panel proveedor" : "Panel comprador"}
+</p>
+
+<h1
+style={{
+margin: "8px 0 0 0",
+fontSize: "30px",
+color: "#1f3552",
+fontWeight: "800",
+}}
+>
+{rol === "proveedor" ? "Mis cotizaciones" : "Cotizaciones recibidas"}
+</h1>
+
+<p
+style={{
+marginTop: "8px",
+marginBottom: 0,
+color: "#5b6472",
+lineHeight: 1.5,
+}}
+>
+{rol === "proveedor"
+? "Aquí puedes revisar tus cotizaciones enviadas y dar seguimiento a tu historial de ofertas."
+: "Aquí puedes revisar todas las cotizaciones recibidas para tus requerimientos y analizarlas antes de comparar."}
+</p>
 </div>
 
-<div style={cardStyle}>
-{cotizaciones.length > 0 ? (
-cotizaciones.map((c) => (
+<div
+style={{
+display: "grid",
+gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+gap: "12px",
+marginBottom: "18px",
+}}
+>
+<div style={miniCard}>
+<p style={{ margin: 0, color: "#6b7280", fontSize: "13px" }}>Total</p>
+<p
+style={{
+margin: "6px 0 0 0",
+fontSize: "26px",
+fontWeight: "800",
+color: "#1f3552",
+}}
+>
+{resumen.total}
+</p>
+</div>
+
+<div style={miniCard}>
+<p style={{ margin: 0, color: "#6b7280", fontSize: "13px" }}>
+Enviadas
+</p>
+<p
+style={{
+margin: "6px 0 0 0",
+fontSize: "26px",
+fontWeight: "800",
+color: "#166534",
+}}
+>
+{resumen.enviadas}
+</p>
+</div>
+
+<div style={miniCard}>
+<p style={{ margin: 0, color: "#6b7280", fontSize: "13px" }}>
+Con archivo
+</p>
+<p
+style={{
+margin: "6px 0 0 0",
+fontSize: "26px",
+fontWeight: "800",
+color: "#92400e",
+}}
+>
+{resumen.conArchivo}
+</p>
+</div>
+
+<div style={miniCard}>
+<p style={{ margin: 0, color: "#6b7280", fontSize: "13px" }}>
+Con valor
+</p>
+<p
+style={{
+margin: "6px 0 0 0",
+fontSize: "26px",
+fontWeight: "800",
+color: "#1d4ed8",
+}}
+>
+{resumen.conValor}
+</p>
+</div>
+</div>
+
+<div style={{ ...cardSecundaria, marginBottom: "18px" }}>
+<input
+type="text"
+placeholder="Buscar por requerimiento, proveedor, estado, valor, email o mensaje"
+value={busqueda}
+onChange={(e) => setBusqueda(e.target.value)}
+style={{
+width: "100%",
+padding: "12px",
+borderRadius: "10px",
+border: "1px solid #ccc",
+}}
+/>
+</div>
+
+<div style={cardSecundaria}>
+{cotizacionesFiltradas.length > 0 ? (
+<div
+style={{
+display: "grid",
+gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+gap: "14px",
+}}
+>
+{cotizacionesFiltradas.map((c) => (
 <div
 key={c.id}
 style={{
-border: "1px solid #dcdcdc",
-borderRadius: "10px",
-padding: "15px",
+backgroundColor: "white",
+border: "1px solid #e5e7eb",
+borderRadius: "14px",
+padding: "16px",
+boxShadow: "0 4px 10px rgba(0,0,0,0.04)",
+}}
+>
+<div
+style={{
+display: "flex",
+justifyContent: "space-between",
+gap: "10px",
+alignItems: "flex-start",
 marginBottom: "12px",
 }}
 >
-<h3 style={{ marginTop: 0 }}>
+<div>
+<h3
+style={{
+margin: 0,
+color: "#1f3552",
+fontSize: "18px",
+}}
+>
 {c.requerimiento_nombre || "Sin requerimiento"}
 </h3>
 
 {rol === "proveedor" ? null : (
-<p>
+<p
+style={{
+margin: "6px 0 0 0",
+color: "#6b7280",
+fontSize: "14px",
+}}
+>
+{c.proveedor_nombre || "Proveedor no especificado"}
+</p>
+)}
+</div>
+
+<div>{badgeEstado(c.estado)}</div>
+</div>
+
+<div
+style={{
+display: "grid",
+gap: "6px",
+marginBottom: "12px",
+}}
+>
+{rol === "proveedor" ? null : (
+<p style={{ margin: 0 }}>
 <strong>Proveedor:</strong>{" "}
 {c.proveedor_nombre || "No especificado"}
 </p>
 )}
 
-<p>
-<strong>Estado:</strong> {c.estado || "No especificado"}
+<p style={{ margin: 0 }}>
+<strong>Valor referencial:</strong>{" "}
+{c.valor_referencial || "No especificado"}
 </p>
 
-{c.valor_referencial ? (
-<p>
-<strong>Valor referencial:</strong> {c.valor_referencial}
+<p style={{ margin: 0 }}>
+<strong>Contacto:</strong> {c.contacto || "No especificado"}
 </p>
-) : (
-<p>
-<strong>Valor referencial:</strong> No especificado
-</p>
-)}
 
-{c.contacto ? (
-<p>
-<strong>Contacto:</strong> {c.contacto}
+<p style={{ margin: 0 }}>
+<strong>Email:</strong> {c.email || "No especificado"}
 </p>
-) : null}
 
-{c.email ? (
-<p>
-<strong>Email:</strong> {c.email}
+<p style={{ margin: 0 }}>
+<strong>Teléfono:</strong> {c.telefono || "No especificado"}
 </p>
-) : null}
+</div>
 
-{c.telefono ? (
-<p>
-<strong>Teléfono:</strong> {c.telefono}
+<div
+style={{
+padding: "12px",
+borderRadius: "10px",
+backgroundColor: "#f9fafb",
+border: "1px solid #f0f0f0",
+marginBottom: "12px",
+}}
+>
+<p
+style={{
+margin: "0 0 6px 0",
+fontWeight: "bold",
+color: "#374151",
+}}
+>
+Mensaje
 </p>
-) : null}
+<p
+style={{
+margin: 0,
+color: "#4b5563",
+whiteSpace: "pre-wrap",
+}}
+>
+{c.mensaje || "Sin mensaje"}
+</p>
+</div>
 
-{c.mensaje ? (
-<p>
-<strong>Mensaje:</strong> {c.mensaje}
+<div
+style={{
+display: "flex",
+justifyContent: "space-between",
+gap: "10px",
+alignItems: "center",
+flexWrap: "wrap",
+}}
+>
+<p
+style={{
+margin: 0,
+fontSize: "12px",
+color: "#6b7280",
+}}
+>
+{c.created_at
+? `Registrada: ${new Date(c.created_at).toLocaleString()}`
+: ""}
 </p>
-) : null}
 
 {c.archivo_url ? (
-<p>
-<strong>Archivo adjunto:</strong>{" "}
-<a href={c.archivo_url} target="_blank" rel="noreferrer">
-Ver archivo
+<a
+href={c.archivo_url}
+target="_blank"
+rel="noreferrer"
+style={{
+display: "inline-block",
+backgroundColor: "#1f3552",
+color: "white",
+textDecoration: "none",
+padding: "9px 12px",
+borderRadius: "8px",
+fontWeight: "bold",
+fontSize: "13px",
+}}
+>
+Ver archivo adjunto
 </a>
-</p>
 ) : (
-<p>
-<strong>Archivo adjunto:</strong> No adjunto
-</p>
+<span
+style={{
+display: "inline-block",
+backgroundColor: "#e5e7eb",
+color: "#4b5563",
+padding: "9px 12px",
+borderRadius: "8px",
+fontWeight: "bold",
+fontSize: "13px",
+}}
+>
+Sin archivo
+</span>
 )}
 </div>
-))
+</div>
+))}
+</div>
 ) : (
-<p>
-{requerimientoId
-? "Aún no hay cotizaciones para este requerimiento."
-: "No hay cotizaciones registradas todavía."}
+<div
+style={{
+backgroundColor: "white",
+border: "1px solid #e5e7eb",
+borderRadius: "14px",
+padding: "18px",
+}}
+>
+<p style={{ margin: 0, fontWeight: "bold" }}>
+No hay cotizaciones registradas todavía.
 </p>
+<p style={{ margin: "6px 0 0 0", color: "#6b7280" }}>
+{rol === "proveedor"
+? "Cuando envíes cotizaciones formales desde oportunidades, aparecerán aquí."
+: "Cuando los proveedores envíen cotizaciones formales para tus requerimientos, aparecerán aquí."}
+</p>
+</div>
 )}
 </div>
 </div>

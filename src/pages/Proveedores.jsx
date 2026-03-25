@@ -8,9 +8,11 @@ const location = useLocation();
 const [searchParams] = useSearchParams();
 
 const [proveedores, setProveedores] = useState([]);
+const [cotizacionesRecibidas, setCotizacionesRecibidas] = useState([]);
 const [cargando, setCargando] = useState(true);
 const [busqueda, setBusqueda] = useState("");
 const [abriendoChatId, setAbriendoChatId] = useState("");
+const [solicitandoCotizacionId, setSolicitandoCotizacionId] = useState("");
 
 const requerimientoId = searchParams.get("requerimiento_id") || "";
 const requerimientoNombre = searchParams.get("requerimiento_nombre") || "";
@@ -18,13 +20,20 @@ const sectorDesdeRequerimiento = searchParams.get("sector") || "";
 const categoriaDesdeRequerimiento = searchParams.get("categoria") || "";
 
 useEffect(() => {
-cargarProveedores();
-}, []);
+cargarTodo();
+}, [requerimientoId]);
+
+const cargarTodo = async () => {
+try {
+setCargando(true);
+await Promise.all([cargarProveedores(), cargarCotizacionesRecibidas()]);
+} finally {
+setCargando(false);
+}
+};
 
 const cargarProveedores = async () => {
 try {
-setCargando(true);
-
 const { data, error } = await supabase
 .from("proveedores")
 .select("*")
@@ -40,8 +49,32 @@ setProveedores(data || []);
 } catch (error) {
 console.error("Error general cargando proveedores:", error);
 setProveedores([]);
-} finally {
-setCargando(false);
+}
+};
+
+const cargarCotizacionesRecibidas = async () => {
+try {
+if (!requerimientoId) {
+setCotizacionesRecibidas([]);
+return;
+}
+
+const { data, error } = await supabase
+.from("cotizaciones")
+.select("*")
+.eq("requerimiento_id", requerimientoId)
+.order("created_at", { ascending: false });
+
+if (error) {
+console.error("Error cargando cotizaciones recibidas:", error);
+setCotizacionesRecibidas([]);
+return;
+}
+
+setCotizacionesRecibidas(data || []);
+} catch (error) {
+console.error("Error general cargando cotizaciones:", error);
+setCotizacionesRecibidas([]);
 }
 };
 
@@ -61,6 +94,18 @@ return "Mejor posicionamiento frente a proveedores gratuitos.";
 return "Visibilidad básica dentro del directorio.";
 };
 
+const cotizacionYaRecibida = (proveedor) => {
+return cotizacionesRecibidas.some((c) => {
+const mismoProveedorPorNombre =
+textoSeguro(c.proveedor_nombre) === textoSeguro(proveedor.nombre);
+
+const mismoProveedorPorEmail =
+textoSeguro(c.email) === textoSeguro(proveedor.email);
+
+return mismoProveedorPorNombre || mismoProveedorPorEmail;
+});
+};
+
 const proveedoresFiltrados = useMemo(() => {
 let lista = [...proveedores];
 
@@ -78,13 +123,6 @@ return true;
 if (sectorDesdeRequerimiento) {
 lista = lista.filter(
 (p) => textoSeguro(p.sector) === textoSeguro(sectorDesdeRequerimiento)
-);
-}
-
-if (categoriaDesdeRequerimiento) {
-lista = lista.filter(
-(p) =>
-textoSeguro(p.categoria) === textoSeguro(categoriaDesdeRequerimiento)
 );
 }
 
@@ -132,44 +170,25 @@ return fechaB - fechaA;
 });
 
 return lista;
-}, [
-proveedores,
-busqueda,
-sectorDesdeRequerimiento,
-categoriaDesdeRequerimiento,
-]);
+}, [proveedores, busqueda, sectorDesdeRequerimiento]);
 
-const abrirChatConProveedor = async (proveedor) => {
-if (!requerimientoId || !requerimientoNombre) {
-alert(
-"Para iniciar un chat, primero debes entrar desde un requerimiento."
-);
-return;
-}
-
-try {
-setAbriendoChatId(proveedor.id || "cargando");
-
+const obtenerUsuarioComprador = async () => {
 const { data: userData, error: userError } = await supabase.auth.getUser();
 
 if (userError) {
-alert(`Error usuario autenticado: ${userError.message}`);
-return;
+throw new Error(userError.message || "Error obteniendo usuario autenticado");
 }
 
 const user = userData?.user || null;
 
 if (!user?.email) {
-alert("Debes iniciar sesión como comprador.");
-return;
+throw new Error("Debes iniciar sesión como comprador.");
 }
 
-if (!proveedor?.email) {
-alert("Este proveedor no tiene email registrado.");
-return;
-}
+return user;
+};
 
-// 1. Leer requerimiento actual
+const obtenerRequerimientoActual = async () => {
 const { data: reqData, error: reqError } = await supabase
 .from("requerimientos")
 .select("*")
@@ -177,16 +196,17 @@ const { data: reqData, error: reqError } = await supabase
 .maybeSingle();
 
 if (reqError) {
-alert(`Error leyendo requerimiento: ${reqError.message}`);
-return;
+throw new Error(reqError.message || "Error leyendo requerimiento");
 }
 
 if (!reqData) {
-alert("No se encontró el requerimiento actual.");
-return;
+throw new Error("No se encontró el requerimiento actual.");
 }
 
-// 2. Buscar conversación exacta
+return reqData;
+};
+
+const asegurarConversacionBase = async (proveedor, user, reqData) => {
 let { data: conversacionExacta, error: errorBusqueda } = await supabase
 .from("conversaciones")
 .select("*")
@@ -196,11 +216,9 @@ let { data: conversacionExacta, error: errorBusqueda } = await supabase
 .maybeSingle();
 
 if (errorBusqueda) {
-alert(`Error buscando conversación: ${errorBusqueda.message}`);
-return;
+throw new Error(errorBusqueda.message || "Error buscando conversación");
 }
 
-// 3. Si no existe, crearla
 if (!conversacionExacta) {
 const payload = {
 comprador_email: user.email,
@@ -220,27 +238,47 @@ const { data: creada, error: errorCreacion } = await supabase
 .single();
 
 if (errorCreacion) {
-alert(`Error creando conversación: ${errorCreacion.message}`);
-return;
+throw new Error(errorCreacion.message || "Error creando conversación");
 }
 
 conversacionExacta = creada;
 }
 
 if (!conversacionExacta?.id) {
-alert("La conversación se creó vacía o sin id.");
+throw new Error("La conversación se creó vacía o sin id.");
+}
+
+return conversacionExacta;
+};
+
+const abrirChatConProveedor = async (proveedor) => {
+if (!requerimientoId || !requerimientoNombre) {
+alert(
+"Para iniciar un chat, primero debes entrar desde un requerimiento."
+);
 return;
 }
 
-// 4. Verificar mensaje inicial
+try {
+setAbriendoChatId(proveedor.id || "cargando");
+
+const user = await obtenerUsuarioComprador();
+const reqData = await obtenerRequerimientoActual();
+const conversacionExacta = await asegurarConversacionBase(
+proveedor,
+user,
+reqData
+);
+
 const { data: mensajesExistentes, error: mensajesError } = await supabase
 .from("mensajes")
 .select("id")
 .eq("conversacion_id", conversacionExacta.id);
 
 if (mensajesError) {
-alert(`Error revisando mensajes: ${mensajesError.message}`);
-return;
+throw new Error(
+mensajesError.message || "Error revisando mensajes existentes"
+);
 }
 
 if (!mensajesExistentes || mensajesExistentes.length === 0) {
@@ -261,8 +299,9 @@ archivo_nombre: reqData.archivo_nombre || null,
 ]);
 
 if (errorMensajeInicial) {
-alert(`Error creando mensaje inicial: ${errorMensajeInicial.message}`);
-return;
+throw new Error(
+errorMensajeInicial.message || "Error creando mensaje inicial"
+);
 }
 }
 
@@ -286,9 +325,64 @@ params.set("categoria", categoriaDesdeRequerimiento);
 
 navigate(`/chat?${params.toString()}`);
 } catch (error) {
-alert(`Error general: ${error.message || "desconocido"}`);
+alert(`Error: ${error.message || "desconocido"}`);
 } finally {
 setAbriendoChatId("");
+}
+};
+
+const solicitarCotizacionAProveedor = async (proveedor) => {
+if (!requerimientoId || !requerimientoNombre) {
+alert(
+"Para solicitar cotización, primero debes entrar desde un requerimiento."
+);
+return;
+}
+
+try {
+setSolicitandoCotizacionId(proveedor.id || "cargando");
+
+const user = await obtenerUsuarioComprador();
+const reqData = await obtenerRequerimientoActual();
+const conversacionExacta = await asegurarConversacionBase(
+proveedor,
+user,
+reqData
+);
+
+const textoSolicitud = `Hola, te solicito una cotización formal para el requerimiento: ${
+reqData.nombre_requerimiento || requerimientoNombre
+}${
+reqData.descripcion ? `\n\nDetalle del requerimiento: ${reqData.descripcion}` : ""
+}\n\nPor favor, envía tu propuesta económica para alimentar el comparativo de ofertas.`;
+
+const { error: errorSolicitud } = await supabase
+.from("mensajes")
+.insert([
+{
+conversacion_id: conversacionExacta.id,
+remitente_email: user.email,
+mensaje: textoSolicitud,
+archivo_url: reqData.archivo_url || null,
+archivo_nombre: reqData.archivo_nombre || null,
+},
+]);
+
+if (errorSolicitud) {
+throw new Error(
+errorSolicitud.message || "Error enviando solicitud de cotización"
+);
+}
+
+alert(
+"Solicitud de cotización enviada correctamente. El proveedor ya podrá responderte con su oferta formal."
+);
+
+await cargarCotizacionesRecibidas();
+} catch (error) {
+alert(`Error: ${error.message || "desconocido"}`);
+} finally {
+setSolicitandoCotizacionId("");
 }
 };
 
@@ -344,6 +438,22 @@ fontWeight: "bold",
 </span>
 );
 };
+
+const badgeCotizacionRecibida = (
+<span
+style={{
+display: "inline-block",
+padding: "6px 10px",
+borderRadius: "999px",
+backgroundColor: "#dcfce7",
+color: "#166534",
+fontSize: "12px",
+fontWeight: "bold",
+}}
+>
+Cotización recibida
+</span>
+);
 
 return (
 <div
@@ -466,8 +576,8 @@ borderLeft: "6px solid #f59e0b",
 Vista general de proveedores
 </p>
 <p style={{ margin: "6px 0 0 0", color: "#7c2d12" }}>
-Puedes explorar proveedores, pero para iniciar una conversación con
-contexto debes entrar desde un requerimiento.
+Puedes explorar proveedores, pero para interactuar con contexto debes
+entrar desde un requerimiento.
 </p>
 </div>
 )}
@@ -508,11 +618,14 @@ Puedes volver al requerimiento o cambiar el filtro de búsqueda.
 <div
 style={{
 display: "grid",
-gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
 gap: "14px",
 }}
 >
-{proveedoresFiltrados.map((p) => (
+{proveedoresFiltrados.map((p) => {
+const yaCotizo = cotizacionYaRecibida(p);
+
+return (
 <div
 key={p.id}
 style={{
@@ -554,7 +667,17 @@ fontSize: "14px",
 </p>
 </div>
 
-<div>{badgePlan(p.plan)}</div>
+<div
+style={{
+display: "flex",
+flexDirection: "column",
+gap: "8px",
+alignItems: "flex-end",
+}}
+>
+{badgePlan(p.plan)}
+{yaCotizo ? badgeCotizacionRecibida : null}
+</div>
 </div>
 
 <p
@@ -600,59 +723,224 @@ lineHeight: 1.4,
 
 <div
 style={{
-marginTop: "14px",
-display: "flex",
-flexWrap: "wrap",
+marginTop: "16px",
+display: "grid",
+gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
 gap: "10px",
 }}
 >
+<div
+style={{
+borderRadius: "14px",
+padding: "14px",
+background: "linear-gradient(135deg, #f3f4f6, #e5e7eb)",
+boxShadow: "0 6px 14px rgba(0,0,0,0.06)",
+border: "1px solid #e5e7eb",
+display: "flex",
+flexDirection: "column",
+justifyContent: "space-between",
+minHeight: "165px",
+}}
+>
+<div>
+<p
+style={{
+margin: 0,
+fontWeight: "bold",
+color: "#1f3552",
+fontSize: "14px",
+}}
+>
+Ver perfil
+</p>
+
+<p
+style={{
+margin: "8px 0 0 0",
+fontSize: "12px",
+color: "#4b5563",
+lineHeight: 1.45,
+}}
+>
+Aquí conocerás el alcance exacto de los servicios del proveedor.
+</p>
+</div>
+
 <button
 onClick={() => verPerfilProveedor(p)}
 style={{
-backgroundColor: "#e5e7eb",
+marginTop: "12px",
+width: "100%",
+backgroundColor: "#ffffff",
 color: "#1f3552",
-border: "none",
+border: "1px solid #d1d5db",
 padding: "10px 14px",
-borderRadius: "8px",
+borderRadius: "10px",
 cursor: "pointer",
 fontWeight: "bold",
 }}
 >
 Ver perfil
 </button>
+</div>
+
+<div
+style={{
+borderRadius: "14px",
+padding: "14px",
+background: "linear-gradient(135deg, #dbeafe, #bfdbfe)",
+boxShadow: "0 6px 14px rgba(37,99,235,0.12)",
+border: "1px solid #93c5fd",
+display: "flex",
+flexDirection: "column",
+justifyContent: "space-between",
+minHeight: "165px",
+}}
+>
+<div>
+<p
+style={{
+margin: 0,
+fontWeight: "bold",
+color: "#1d4ed8",
+fontSize: "14px",
+}}
+>
+Chatear
+</p>
+
+<p
+style={{
+margin: "8px 0 0 0",
+fontSize: "12px",
+color: "#1e40af",
+lineHeight: 1.45,
+}}
+>
+Úsalo cuando ya necesites conversar o negociar directamente.
+</p>
+</div>
 
 {requerimientoId && requerimientoNombre ? (
 <button
 onClick={() => abrirChatConProveedor(p)}
 disabled={abriendoChatId === p.id}
 style={{
+marginTop: "12px",
+width: "100%",
 backgroundColor: "#2563eb",
 color: "white",
 border: "none",
-padding: "10px 14px",
-borderRadius: "8px",
+padding: "10px 12px",
+borderRadius: "10px",
 cursor: "pointer",
 fontWeight: "bold",
 opacity: abriendoChatId === p.id ? 0.7 : 1,
 }}
 >
-{abriendoChatId === p.id
-? "Abriendo chat..."
-: "Contactar proveedor para este requerimiento"}
+{abriendoChatId === p.id ? "Abriendo..." : "Chatear"}
 </button>
 ) : (
 <button
 onClick={() =>
 alert(
-"Para iniciar un chat, primero abre un requerimiento y entra desde ahí."
+"Para chatear con este proveedor, primero abre un requerimiento y entra desde ahí."
 )
 }
 style={{
+marginTop: "12px",
+width: "100%",
 backgroundColor: "#9ca3af",
 color: "white",
 border: "none",
-padding: "10px 14px",
-borderRadius: "8px",
+padding: "10px 12px",
+borderRadius: "10px",
+cursor: "pointer",
+fontWeight: "bold",
+}}
+>
+Abrir desde requerimiento
+</button>
+)}
+</div>
+
+<div
+style={{
+borderRadius: "14px",
+padding: "14px",
+background: "linear-gradient(135deg, #fde68a, #fcd34d)",
+boxShadow: "0 6px 14px rgba(245,158,11,0.14)",
+border: "1px solid #f59e0b",
+display: "flex",
+flexDirection: "column",
+justifyContent: "space-between",
+minHeight: "165px",
+}}
+>
+<div>
+<p
+style={{
+margin: 0,
+fontWeight: "bold",
+color: "#92400e",
+fontSize: "14px",
+}}
+>
+Solicitar cotización
+</p>
+
+<p
+style={{
+margin: "8px 0 0 0",
+fontSize: "12px",
+color: "#92400e",
+lineHeight: 1.45,
+}}
+>
+Este es el paso formal. No abre chat directo; primero solicita
+la cotización y luego, si hace falta, puedes negociar por chat.
+</p>
+</div>
+
+{requerimientoId && requerimientoNombre ? (
+<button
+onClick={() => solicitarCotizacionAProveedor(p)}
+disabled={solicitandoCotizacionId === p.id || yaCotizo}
+style={{
+marginTop: "12px",
+width: "100%",
+backgroundColor: yaCotizo ? "#9ca3af" : "#f97316",
+color: "white",
+border: "none",
+padding: "10px 12px",
+borderRadius: "10px",
+cursor: yaCotizo ? "not-allowed" : "pointer",
+fontWeight: "bold",
+opacity:
+solicitandoCotizacionId === p.id || yaCotizo ? 0.8 : 1,
+}}
+>
+{yaCotizo
+? "Cotización recibida"
+: solicitandoCotizacionId === p.id
+? "Solicitando..."
+: "Solicitar"}
+</button>
+) : (
+<button
+onClick={() =>
+alert(
+"Para solicitar cotización, primero abre un requerimiento y entra desde ahí."
+)
+}
+style={{
+marginTop: "12px",
+width: "100%",
+backgroundColor: "#9ca3af",
+color: "white",
+border: "none",
+padding: "10px 12px",
+borderRadius: "10px",
 cursor: "pointer",
 fontWeight: "bold",
 }}
@@ -662,7 +950,9 @@ Abrir desde requerimiento
 )}
 </div>
 </div>
-))}
+</div>
+);
+})}
 </div>
 )}
 </div>

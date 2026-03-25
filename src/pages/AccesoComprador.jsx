@@ -14,6 +14,9 @@ const [cargando, setCargando] = useState(false);
 const RECOVERY_REDIRECT_URL =
 "https://procuro-app.vercel.app/recuperar-password-comprador";
 
+const isMobile =
+typeof window !== "undefined" ? window.innerWidth <= 768 : false;
+
 useEffect(() => {
 verificarSesion();
 
@@ -52,7 +55,7 @@ const correoLimpio = email.trim().toLowerCase();
 
 const { error } = await supabase.auth.signUp({
 email: correoLimpio,
-password
+password,
 });
 
 if (error) {
@@ -85,7 +88,7 @@ const correoLimpio = email.trim().toLowerCase();
 
 const { error } = await supabase.auth.signInWithPassword({
 email: correoLimpio,
-password
+password,
 });
 
 if (error) {
@@ -119,7 +122,7 @@ const correoLimpio = email.trim().toLowerCase();
 const { error } = await supabase.auth.resetPasswordForEmail(
 correoLimpio,
 {
-redirectTo: RECOVERY_REDIRECT_URL
+redirectTo: RECOVERY_REDIRECT_URL,
 }
 );
 
@@ -143,37 +146,189 @@ localStorage.setItem("rol", "comprador");
 navigate("/panel-comprador");
 };
 
+const paginaStyle = {
+minHeight: "100vh",
+background:
+"linear-gradient(135deg, #111827 0%, #1f2937 38%, #1f3552 72%, #0f172a 100%)",
+padding: isMobile ? "16px" : "34px",
+};
+
+const heroCardStyle = {
+background:
+"linear-gradient(135deg, rgba(245,239,230,0.98), rgba(241,233,221,0.96))",
+borderRadius: "24px",
+padding: isMobile ? "22px 18px" : "30px 32px",
+boxShadow: "0 18px 40px rgba(0,0,0,0.22)",
+marginBottom: "20px",
+position: "relative",
+overflow: "hidden",
+};
+
+const formCardStyle = {
+background: "#f8f5ef",
+borderRadius: "20px",
+padding: isMobile ? "20px 16px" : "24px",
+boxShadow: "0 12px 28px rgba(0,0,0,0.18)",
+border: "1px solid rgba(31,53,82,0.10)",
+};
+
+const inputStyle = {
+width: "100%",
+padding: "13px 14px",
+marginBottom: "12px",
+borderRadius: "12px",
+border: "1px solid #d1d5db",
+boxSizing: "border-box",
+fontSize: "14px",
+backgroundColor: "white",
+color: "#111827",
+};
+
+const btnPrincipal = {
+background: "linear-gradient(135deg, #1f3552, #2563eb)",
+color: "white",
+border: "none",
+padding: "12px 18px",
+borderRadius: "12px",
+cursor: "pointer",
+fontWeight: "700",
+boxShadow: "0 8px 16px rgba(37,99,235,0.18)",
+};
+
+const btnSecundario = {
+backgroundColor: "#e5e7eb",
+color: "#111827",
+border: "none",
+padding: "12px 18px",
+borderRadius: "12px",
+cursor: "pointer",
+fontWeight: "700",
+};
+
+const tabStyle = (activo) => ({
+background: activo
+? "linear-gradient(135deg, #1f3552, #2563eb)"
+: "#e5e7eb",
+color: activo ? "white" : "#111827",
+border: "none",
+padding: "10px 14px",
+borderRadius: "12px",
+cursor: "pointer",
+fontWeight: "700",
+boxShadow: activo ? "0 8px 16px rgba(37,99,235,0.18)" : "none",
+});
+
 return (
+<div style={paginaStyle}>
+<div style={heroCardStyle}>
 <div
 style={{
-backgroundColor: "white",
-borderRadius: "16px",
-padding: "24px",
-boxShadow: "0 4px 14px rgba(0,0,0,0.08)"
+position: "absolute",
+top: "-30px",
+right: "-20px",
+width: "150px",
+height: "150px",
+background:
+"radial-gradient(circle, rgba(249,115,22,0.15) 0%, rgba(249,115,22,0) 72%)",
+pointerEvents: "none",
+}}
+/>
+
+<p
+style={{
+margin: 0,
+color: "#f97316",
+fontSize: "12px",
+fontWeight: "800",
+textTransform: "uppercase",
+letterSpacing: "0.08em",
 }}
 >
-<h2>Acceso comprador</h2>
+Acceso comprador
+</p>
+
+<h1
+style={{
+margin: "10px 0 8px 0",
+color: "#1f3552",
+fontSize: isMobile ? "24px" : "30px",
+lineHeight: 1.25,
+fontWeight: "700",
+}}
+>
+Entra para buscar mejor, comparar con más criterio y comprar con más orden.
+</h1>
+
+<p
+style={{
+margin: 0,
+color: "#4b5563",
+lineHeight: 1.65,
+fontSize: isMobile ? "14px" : "16px",
+maxWidth: "820px",
+}}
+>
+Desde aquí puedes acceder a tu panel, publicar requerimientos,
+solicitar cotizaciones y analizar proveedores dentro de una estructura
+pensada para compras.
+</p>
+</div>
+
+<div style={formCardStyle}>
+<h2
+style={{
+marginTop: 0,
+marginBottom: "10px",
+color: "#1f3552",
+fontSize: isMobile ? "22px" : "26px",
+fontWeight: "700",
+}}
+>
+{usuario ? "Sesión activa" : "Tu acceso en PROCURO"}
+</h2>
 
 {usuario ? (
 <>
-<p>
-<strong>Sesión activa:</strong> {usuario.email}
+<div
+style={{
+backgroundColor: "white",
+borderRadius: "14px",
+padding: "16px",
+border: "1px solid #e5e7eb",
+boxShadow: "0 4px 10px rgba(0,0,0,0.04)",
+}}
+>
+<p style={{ margin: 0, color: "#6b7280", fontSize: "13px" }}>
+Correo activo
 </p>
-<p style={{ color: "#555", marginTop: "6px" }}>
-Tu sesión ya está activa. Entra a tu dashboard para gestionar tu cuenta.
+<p
+style={{
+margin: "6px 0 0 0",
+color: "#111827",
+fontWeight: "700",
+}}
+>
+{usuario.email}
 </p>
+
+<p
+style={{
+color: "#4b5563",
+marginTop: "12px",
+marginBottom: 0,
+lineHeight: 1.6,
+}}
+>
+Tu sesión ya está activa. Entra a tu dashboard para gestionar
+requerimientos, cotizaciones y comparativos.
+</p>
+</div>
 
 <button
 onClick={irADashboard}
 style={{
-backgroundColor: "#1f3552",
-color: "white",
-border: "none",
-padding: "12px 18px",
-borderRadius: "10px",
-cursor: "pointer",
-fontWeight: "bold",
-marginTop: "12px"
+...btnPrincipal,
+marginTop: "16px",
 }}
 >
 Ir a mi dashboard
@@ -185,36 +340,20 @@ Ir a mi dashboard
 style={{
 display: "flex",
 gap: "10px",
-marginBottom: "16px",
-flexWrap: "wrap"
+marginBottom: "18px",
+flexWrap: "wrap",
 }}
 >
 <button
 onClick={() => setModo("login")}
-style={{
-backgroundColor: modo === "login" ? "#1f3552" : "#e5e7eb",
-color: modo === "login" ? "white" : "#111827",
-border: "none",
-padding: "10px 14px",
-borderRadius: "8px",
-cursor: "pointer",
-fontWeight: "bold"
-}}
+style={tabStyle(modo === "login")}
 >
 Iniciar sesión
 </button>
 
 <button
 onClick={() => setModo("registro")}
-style={{
-backgroundColor: modo === "registro" ? "#1f3552" : "#e5e7eb",
-color: modo === "registro" ? "white" : "#111827",
-border: "none",
-padding: "10px 14px",
-borderRadius: "8px",
-cursor: "pointer",
-fontWeight: "bold"
-}}
+style={tabStyle(modo === "registro")}
 >
 Crear cuenta
 </button>
@@ -225,13 +364,7 @@ type="email"
 placeholder="Correo electrónico"
 value={email}
 onChange={(e) => setEmail(e.target.value)}
-style={{
-width: "100%",
-padding: "12px",
-marginBottom: "12px",
-borderRadius: "10px",
-border: "1px solid #ccc"
-}}
+style={inputStyle}
 />
 
 <input
@@ -239,13 +372,7 @@ type="password"
 placeholder="Contraseña"
 value={password}
 onChange={(e) => setPassword(e.target.value)}
-style={{
-width: "100%",
-padding: "12px",
-marginBottom: "12px",
-borderRadius: "10px",
-border: "1px solid #ccc"
-}}
+style={inputStyle}
 />
 
 <div
@@ -253,22 +380,15 @@ style={{
 display: "flex",
 gap: "10px",
 flexWrap: "wrap",
-alignItems: "center"
+alignItems: "center",
+marginTop: "6px",
 }}
 >
 {modo === "login" ? (
 <button
 onClick={iniciarSesion}
 disabled={cargando}
-style={{
-backgroundColor: "#1f3552",
-color: "white",
-border: "none",
-padding: "12px 18px",
-borderRadius: "10px",
-cursor: "pointer",
-fontWeight: "bold"
-}}
+style={btnPrincipal}
 >
 {cargando ? "Ingresando..." : "Ingresar"}
 </button>
@@ -276,15 +396,7 @@ fontWeight: "bold"
 <button
 onClick={registrarse}
 disabled={cargando}
-style={{
-backgroundColor: "#1f3552",
-color: "white",
-border: "none",
-padding: "12px 18px",
-borderRadius: "10px",
-cursor: "pointer",
-fontWeight: "bold"
-}}
+style={btnPrincipal}
 >
 {cargando ? "Creando..." : "Crear cuenta"}
 </button>
@@ -293,21 +405,28 @@ fontWeight: "bold"
 <button
 onClick={recuperarPassword}
 disabled={cargando}
-style={{
-backgroundColor: "#e5e7eb",
-color: "#111827",
-border: "none",
-padding: "12px 18px",
-borderRadius: "10px",
-cursor: "pointer",
-fontWeight: "bold"
-}}
+style={btnSecundario}
 >
 Olvidé mi contraseña
 </button>
 </div>
+
+<p
+style={{
+marginTop: "14px",
+marginBottom: 0,
+color: "#6b7280",
+fontSize: "13px",
+lineHeight: 1.6,
+}}
+>
+{modo === "login"
+? "Entra para gestionar tus requerimientos y comparar cotizaciones."
+: "Crea tu cuenta para comenzar a trabajar tu proceso de compra dentro de PROCURO."}
+</p>
 </>
 )}
+</div>
 </div>
 );
 }
