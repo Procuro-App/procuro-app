@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import logo from "../assets/logo_procuro_orange.png";
 
-const ADMIN_EMAILS = ["TU_CORREO_ADMIN_AQUI"];
+const ADMIN_EMAILS = ["soporte.procuroapp@gmail.com"];
 
 function Navbar() {
 const [mostrarAdmin, setMostrarAdmin] = useState(false);
