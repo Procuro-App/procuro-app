@@ -46,6 +46,9 @@ const [email, setEmail] = useState("");
 const [telefono, setTelefono] = useState("");
 const [telefonoSecundario, setTelefonoSecundario] = useState("");
 
+const [provinciaManual, setProvinciaManual] = useState("");
+const [ciudadManual, setCiudadManual] = useState("");
+
 const [brochure, setBrochure] = useState(null);
 const [presentacion, setPresentacion] = useState(null);
 const [certificaciones, setCertificaciones] = useState(null);
@@ -125,6 +128,9 @@ setCargando(false);
 const categoriasDisponibles = sector ? sectores[sector] || [] : [];
 
 const usaDropdownPais = ["Ecuador", "Chile", "China", "Emiratos Árabes Unidos", "Alemania", "India"].includes(pais);
+
+const usaManualPorOtro = usaDropdownPais && provincia === "Otro";
+
 const esPaisManual = pais && !usaDropdownPais;
 
 const divisionesDisponibles =
@@ -477,11 +483,29 @@ border: "1px solid #ccc"
 
 {usaDropdownPais ? (
 <>
+{usaManualPorOtro ? (
+<input
+type="text"
+placeholder="Provincia / Estado / Departamento / Región *"
+value={provinciaManual}
+onChange={(e) => setProvinciaManual(e.target.value)}
+disabled={!pais}
+style={{
+padding: "12px",
+borderRadius: "10px",
+border: "1px solid #ccc",
+backgroundColor: pais ? "white" : "#f3f3f3",
+width: "100%"
+}}
+/>
+) : (
 <select
 value={provincia}
 onChange={(e) => {
 setProvincia(e.target.value);
 setCiudad("");
+setProvinciaManual("");
+setCiudadManual("");
 }}
 disabled={!pais}
 style={{
@@ -498,7 +522,24 @@ backgroundColor: pais ? "white" : "#f3f3f3"
 </option>
 ))}
 </select>
+)}
 
+{usaManualPorOtro ? (
+<input
+type="text"
+placeholder="Ciudad *"
+value={ciudadManual}
+onChange={(e) => setCiudadManual(e.target.value)}
+disabled={!pais}
+style={{
+padding: "12px",
+borderRadius: "10px",
+border: "1px solid #ccc",
+backgroundColor: pais ? "white" : "#f3f3f3",
+width: "100%"
+}}
+/>
+) : (
 <select
 value={ciudad}
 onChange={(e) => setCiudad(e.target.value)}
@@ -517,6 +558,8 @@ backgroundColor: provincia ? "white" : "#f3f3f3"
 </option>
 ))}
 </select>
+)}
+
 </>
 ) : (
 <>
