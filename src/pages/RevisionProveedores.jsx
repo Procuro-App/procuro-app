@@ -307,7 +307,7 @@ fontWeight: "700",
 </h3>
 
 <p><strong>Estado:</strong> {p.estado || "Pendiente"}</p>
-<p><strong>RUC / RUT / Tax ID:</strong> {p.ruc_rut || "⚠️ No completado"}</p>
+<p><strong>RUC / RUT / Tax ID:</strong> {p.ruc_rut || "❌ Falta RUC"}</p>
 <p><strong>Cobertura:</strong> {p.cobertura || "No definida"}</p>
 <p><strong>País:</strong> {p.pais || "No definido"}</p>
 {p.provincia ? <p><strong>Provincia:</strong> {p.provincia}</p> : null}
@@ -342,9 +342,15 @@ fontWeight: "700",
 
 <button
 onClick={() => aprobarProveedor(p.id)}
-style={botonAprobar}
+disabled={!p.ruc_rut}
+style={{
+...botonAprobar,
+background: !p.ruc_rut ? "#9ca3af" : botonAprobar.background,
+cursor: !p.ruc_rut ? "not-allowed" : "pointer",
+opacity: !p.ruc_rut ? 0.8 : 1,
+}}
 >
-Aprobar proveedor
+{!p.ruc_rut ? "Falta RUC" : "Aprobar proveedor"}
 </button>
 </div>
 ))}
