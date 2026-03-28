@@ -125,6 +125,7 @@ setCargando(false);
 const categoriasDisponibles = sector ? sectores[sector] || [] : [];
 
 const usaDropdownPais = ["Ecuador", "Chile", "China", "Emiratos Árabes Unidos", "Alemania", "India"].includes(pais);
+const esPaisManual = pais && !usaDropdownPais;
 
 const divisionesDisponibles =
 pais === "Ecuador"
@@ -427,7 +428,7 @@ Ingresa una identificación fiscal válida entre 8 y 20 caracteres. Puede conten
 <div
 style={{
 display: "grid",
-gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
 gap: "12px",
 marginBottom: "12px"
 }}
@@ -519,10 +520,9 @@ backgroundColor: provincia ? "white" : "#f3f3f3"
 </>
 ) : (
 <>
-<div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "4px" }}>
 <input
 type="text"
-placeholder="Provincia / Estado / Departamento / Región *"
+placeholder="Provincia / Estado / Departamento / Región"
 value={provincia}
 onChange={(e) => setProvincia(e.target.value)}
 disabled={!pais}
@@ -534,15 +534,10 @@ backgroundColor: pais ? "white" : "#f3f3f3",
 width: "100%"
 }}
 />
-<p style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>
-* Ingresa manualmente la provincia, estado o departamento.
-</p>
-</div>
 
-<div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "4px" }}>
 <input
 type="text"
-placeholder="Ciudad *"
+placeholder="Ciudad"
 value={ciudad}
 onChange={(e) => setCiudad(e.target.value)}
 disabled={!pais}
@@ -554,10 +549,6 @@ backgroundColor: pais ? "white" : "#f3f3f3",
 width: "100%"
 }}
 />
-<p style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>
-* Ingresa manualmente la ciudad.
-</p>
-</div>
 </>
 )}
 
@@ -601,6 +592,17 @@ backgroundColor: sector ? "white" : "#f3f3f3"
 </select>
 </div>
 
+{esPaisManual ? (
+<div style={{ marginTop: "-4px", marginBottom: "12px" }}>
+<p style={{ fontSize: "12px", color: "#6b7280", margin: "4px 0" }}>
+* Para este país, ingresa manualmente la provincia, estado, departamento o región.
+</p>
+<p style={{ fontSize: "12px", color: "#6b7280", margin: "4px 0" }}>
+* Ingresa manualmente la ciudad.
+</p>
+</div>
+) : null}
+
 <textarea
 placeholder="Descripción"
 value={descripcion}
@@ -618,7 +620,7 @@ border: "1px solid #ccc"
 <div
 style={{
 display: "grid",
-gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
 gap: "12px",
 marginBottom: "12px"
 }}
