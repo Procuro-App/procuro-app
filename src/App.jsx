@@ -12,6 +12,7 @@ import AccesoProveedor from "./pages/AccesoProveedor";
 import AccesoComprador from "./pages/AccesoComprador";
 import RegistroProveedor from "./pages/RegistroProveedor";
 import RevisionProveedores from "./pages/RevisionProveedores";
+import AdminDashboard from "./pages/AdminDashboard";
 import PanelProveedor from "./pages/PanelProveedor";
 import PanelComprador from "./pages/PanelComprador";
 import RecuperarPassword from "./pages/RecuperarPassword";
@@ -62,6 +63,7 @@ path="/revision-proveedores"
 element={<RevisionProveedores />}
 />
 
+<Route path="/admin" element={<AdminDashboard />} />
 <Route path="/panel-proveedor" element={<PanelProveedor />} />
 <Route path="/panel-comprador" element={<PanelComprador />} />
 

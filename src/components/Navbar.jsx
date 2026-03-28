@@ -150,7 +150,7 @@ Soy proveedor
 
 {mostrarAdmin ? (
 <Link
-to="/revision-proveedores"
+to="/admin"
 style={{
 ...btnStyle(
 isMobile,
