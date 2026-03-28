@@ -102,6 +102,7 @@ fontWeight: "bold",
 <p><strong>Descripción:</strong> {proveedor.descripcion}</p>
 
 <p><strong>Contacto:</strong> {proveedor.contacto}</p>
+<p><strong>RUC / RUT / Tax ID:</strong> {proveedor.ruc_rut || "No definido"}</p>
 <p><strong>Email:</strong> {proveedor.email}</p>
 <p><strong>Teléfono:</strong> {proveedor.telefono}</p>
 
