@@ -519,9 +519,10 @@ backgroundColor: provincia ? "white" : "#f3f3f3"
 </>
 ) : (
 <>
+<div>
 <input
 type="text"
-placeholder="Provincia / Estado / Departamento / Región"
+placeholder="Provincia / Estado / Departamento / Región *"
 value={provincia}
 onChange={(e) => setProvincia(e.target.value)}
 disabled={!pais}
@@ -529,13 +530,19 @@ style={{
 padding: "12px",
 borderRadius: "10px",
 border: "1px solid #ccc",
-backgroundColor: pais ? "white" : "#f3f3f3"
+backgroundColor: pais ? "white" : "#f3f3f3",
+width: "100%"
 }}
 />
+<p style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>
+* Ingresa manualmente la provincia, estado o departamento.
+</p>
+</div>
 
+<div>
 <input
 type="text"
-placeholder="Ciudad"
+placeholder="Ciudad *"
 value={ciudad}
 onChange={(e) => setCiudad(e.target.value)}
 disabled={!pais}
@@ -543,12 +550,16 @@ style={{
 padding: "12px",
 borderRadius: "10px",
 border: "1px solid #ccc",
-backgroundColor: pais ? "white" : "#f3f3f3"
+backgroundColor: pais ? "white" : "#f3f3f3",
+width: "100%"
 }}
 />
+<p style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px" }}>
+* Ingresa manualmente la ciudad.
+</p>
+</div>
 </>
 )}
-
 
 <select
 value={sector}
