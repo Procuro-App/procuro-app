@@ -100,6 +100,45 @@ fontWeight: "bold",
 <p><strong>Sector:</strong> {proveedor.sector}</p>
 <p><strong>Categoría:</strong> {proveedor.categoria}</p>
 <p><strong>Descripción:</strong> {proveedor.descripcion}</p>
+<hr style={{ margin: "20px 0" }} />
+
+<h3 style={{ color: "#1f3552" }}>Documentos del proveedor</h3>
+
+{proveedor.brochure_url && (
+<p>
+<strong>Brochure:</strong>{" "}
+<a href={proveedor.brochure_url} target="_blank" rel="noreferrer">
+Ver documento
+</a>
+</p>
+)}
+
+{proveedor.presentacion_url && (
+<p>
+<strong>Presentación:</strong>{" "}
+<a href={proveedor.presentacion_url} target="_blank" rel="noreferrer">
+Ver documento
+</a>
+</p>
+)}
+
+{proveedor.certificaciones_url && (
+<p>
+<strong>Certificaciones:</strong>{" "}
+<a href={proveedor.certificaciones_url} target="_blank" rel="noreferrer">
+Ver documento
+</a>
+</p>
+)}
+
+{proveedor.catalogo_url && (
+<p>
+<strong>Catálogo:</strong>{" "}
+<a href={proveedor.catalogo_url} target="_blank" rel="noreferrer">
+Ver documento
+</a>
+</p>
+)}
 
 <p><strong>Contacto:</strong> {proveedor.contacto}</p>
 <p><strong>RUC / RUT / Tax ID:</strong> {proveedor.ruc_rut || "No definido"}</p>
