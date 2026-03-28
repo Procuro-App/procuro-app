@@ -126,7 +126,15 @@ const ciudadesDisponibles = provincia ? ciudadesEcuador[provincia] || [] : [];
 const subirArchivoProveedor = async (archivo, carpeta = "general") => {
 if (!archivo) return "";
 
-const nombreSeguro = `${Date.now()}-${archivo.name.replace(/\s+/g, "-")}`;
+const nombreOriginal = archivo.name;
+
+// limpiar nombre (sin espacios ni símbolos raros)
+const nombreLimpio = nombreOriginal
+.normalize("NFD") // quita tildes
+.replace(/[\u0300-\u036f]/g, "")
+.replace(/[^a-zA-Z0-9.]/g, "_"); // solo letras, números y punto
+
+const nombreSeguro = `${Date.now()}-${nombreLimpio}`;
 const ruta = `${carpeta}/${nombreSeguro}`;
 
 const { error } = await supabase.storage
