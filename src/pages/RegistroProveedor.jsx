@@ -519,7 +519,7 @@ backgroundColor: provincia ? "white" : "#f3f3f3"
 </>
 ) : (
 <>
-<div>
+<div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "4px" }}>
 <input
 type="text"
 placeholder="Provincia / Estado / Departamento / Región *"
@@ -539,7 +539,7 @@ width: "100%"
 </p>
 </div>
 
-<div>
+<div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "4px" }}>
 <input
 type="text"
 placeholder="Ciudad *"
