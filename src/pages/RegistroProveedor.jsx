@@ -135,6 +135,7 @@ const nombreLimpio = nombreOriginal
 .replace(/[^a-zA-Z0-9.]/g, "_"); // solo letras, números y punto
 
 const nombreSeguro = `${Date.now()}-${nombreLimpio}`;
+
 const ruta = `${carpeta}/${nombreSeguro}`;
 
 const { error } = await supabase.storage
