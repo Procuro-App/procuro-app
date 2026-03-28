@@ -1,3 +1,4 @@
+import emailjs from "@emailjs/browser";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
@@ -72,23 +73,39 @@ setProveedoresPendientes(data || []);
 setCargando(false);
 };
 
-const aprobarProveedor = async (proveedorId) => {
+const aprobarProveedor = async (proveedor) => {
+try {
+// 1. Aprobar en base
 const { error } = await supabase
 .from("proveedores")
 .update({
 estado: "Aprobado",
 verificado: true,
 })
-.eq("id", proveedorId);
+.eq("id", proveedor.id);
 
 if (error) {
-console.error("Error aprobando proveedor:", error);
-alert("Hubo un problema al aprobar el proveedor.");
-return;
+throw error;
 }
 
-alert("Proveedor aprobado correctamente.");
+// 2. Enviar correo automático
+await emailjs.send(
+"soporte.procuroapp", // Service ID
+"template_znn0f4l", // Template ID
+{
+nombre: proveedor.nombre || proveedor.contacto || "Proveedor",
+email: proveedor.email,
+},
+"WMUL-bM_T6_fHLmbR" 
+);
+
+alert("Proveedor aprobado y correo enviado 🚀");
+
 cargarPendientes();
+} catch (error) {
+console.error("Error:", error);
+alert("Error al aprobar o enviar correo");
+}
 };
 
 const limpiarPendientes = async () => {
@@ -341,7 +358,7 @@ fontWeight: "700",
 </p>
 
 <button
-onClick={() => aprobarProveedor(p.id)}
+onClick={() => aprobarProveedor(p)}
 disabled={!p.ruc_rut}
 style={{
 ...botonAprobar,
