@@ -260,8 +260,8 @@ alert("Perfil de proveedor actualizado correctamente");
 
 await iniciar();
 } catch (err) {
-console.error(err);
-alert("Ocurrió un error al subir archivos o guardar el proveedor");
+console.error("Error real guardando proveedor:", err);
+alert(`Ocurrió un error: ${err.message || "Error desconocido"}`);
 } finally {
 setGuardando(false);
 }
