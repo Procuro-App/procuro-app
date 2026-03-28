@@ -3,6 +3,8 @@ import { sectores } from "../data/categorias";
 import { paises } from "../data/paises";
 import { provinciasEcuador } from "../data/provinciasEcuador";
 import { ciudadesEcuador } from "../data/ciudadesEcuador";
+import { divisionesPorPais } from "../data/divisionesPorPais";
+import { ciudadesPorDivision } from "../data/ciudadesPorDivision";
 import { supabase } from "../lib/supabase";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -121,7 +123,22 @@ setCargando(false);
 };
 
 const categoriasDisponibles = sector ? sectores[sector] || [] : [];
-const ciudadesDisponibles = provincia ? ciudadesEcuador[provincia] || [] : [];
+
+const usaDropdownPais = ["Ecuador", "Chile", "China", "Emiratos Árabes Unidos", "Alemania", "India"].includes(pais);
+
+const divisionesDisponibles =
+pais === "Ecuador"
+? provinciasEcuador
+: divisionesPorPais[pais] || [];
+
+const ciudadesDisponibles =
+pais === "Ecuador"
+? provincia
+? ciudadesEcuador[provincia] || []
+: []
+: provincia
+? ciudadesPorDivision[provincia] || []
+: [];
 
 const subirArchivoProveedor = async (archivo, carpeta = "general") => {
 if (!archivo) return "";
@@ -457,22 +474,24 @@ border: "1px solid #ccc"
 ))}
 </select>
 
+{usaDropdownPais ? (
+<>
 <select
 value={provincia}
 onChange={(e) => {
 setProvincia(e.target.value);
 setCiudad("");
 }}
-disabled={pais !== "Ecuador"}
+disabled={!pais}
 style={{
 padding: "12px",
 borderRadius: "10px",
 border: "1px solid #ccc",
-backgroundColor: pais === "Ecuador" ? "white" : "#f3f3f3"
+backgroundColor: pais ? "white" : "#f3f3f3"
 }}
 >
-<option value="">Provincia</option>
-{provinciasEcuador.map((item) => (
+<option value="">Provincia / Estado / Departamento / Región</option>
+{divisionesDisponibles.map((item) => (
 <option key={item} value={item}>
 {item}
 </option>
@@ -497,6 +516,39 @@ backgroundColor: provincia ? "white" : "#f3f3f3"
 </option>
 ))}
 </select>
+</>
+) : (
+<>
+<input
+type="text"
+placeholder="Provincia / Estado / Departamento / Región"
+value={provincia}
+onChange={(e) => setProvincia(e.target.value)}
+disabled={!pais}
+style={{
+padding: "12px",
+borderRadius: "10px",
+border: "1px solid #ccc",
+backgroundColor: pais ? "white" : "#f3f3f3"
+}}
+/>
+
+<input
+type="text"
+placeholder="Ciudad"
+value={ciudad}
+onChange={(e) => setCiudad(e.target.value)}
+disabled={!pais}
+style={{
+padding: "12px",
+borderRadius: "10px",
+border: "1px solid #ccc",
+backgroundColor: pais ? "white" : "#f3f3f3"
+}}
+/>
+</>
+)}
+
 
 <select
 value={sector}
