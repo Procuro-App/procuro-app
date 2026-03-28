@@ -307,6 +307,7 @@ fontWeight: "700",
 </h3>
 
 <p><strong>Estado:</strong> {p.estado || "Pendiente"}</p>
+<p><strong>RUC / RUT / Tax ID:</strong> {p.ruc_rut || "⚠️ No completado"}</p>
 <p><strong>Cobertura:</strong> {p.cobertura || "No definida"}</p>
 <p><strong>País:</strong> {p.pais || "No definido"}</p>
 {p.provincia ? <p><strong>Provincia:</strong> {p.provincia}</p> : null}
