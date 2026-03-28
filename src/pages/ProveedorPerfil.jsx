@@ -2,6 +2,18 @@ import { useEffect, useState } from "react";
 import { useLocation, useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 
+const botonDocumento = {
+backgroundColor: "#f5f5f5",
+padding: "12px",
+borderRadius: "10px",
+textAlign: "center",
+textDecoration: "none",
+color: "#1f3552",
+fontWeight: "bold",
+border: "1px solid #ddd",
+cursor: "pointer"
+};
+
 function ProveedorPerfil() {
 const { id } = useParams();
 const location = useLocation();
@@ -104,41 +116,60 @@ fontWeight: "bold",
 
 <h3 style={{ color: "#1f3552" }}>Documentos del proveedor</h3>
 
+<h3 style={{ marginTop: "20px" }}>Documentos</h3>
+
+<div
+style={{
+display: "grid",
+gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+gap: "12px",
+marginTop: "10px"
+}}
+>
 {proveedor.brochure_url && (
-<p>
-<strong>Brochure:</strong>{" "}
-<a href={proveedor.brochure_url} target="_blank" rel="noreferrer">
-Ver documento
+<a
+href={proveedor.brochure_url}
+target="_blank"
+rel="noopener noreferrer"
+style={botonDocumento}
+>
+📄 Brochure
 </a>
-</p>
 )}
 
 {proveedor.presentacion_url && (
-<p>
-<strong>Presentación:</strong>{" "}
-<a href={proveedor.presentacion_url} target="_blank" rel="noreferrer">
-Ver documento
+<a
+href={proveedor.presentacion_url}
+target="_blank"
+rel="noopener noreferrer"
+style={botonDocumento}
+>
+📁 Presentación
 </a>
-</p>
 )}
 
 {proveedor.certificaciones_url && (
-<p>
-<strong>Certificaciones:</strong>{" "}
-<a href={proveedor.certificaciones_url} target="_blank" rel="noreferrer">
-Ver documento
+<a
+href={proveedor.certificaciones_url}
+target="_blank"
+rel="noopener noreferrer"
+style={botonDocumento}
+>
+🏅 Certificaciones
 </a>
-</p>
 )}
 
 {proveedor.catalogo_url && (
-<p>
-<strong>Catálogo:</strong>{" "}
-<a href={proveedor.catalogo_url} target="_blank" rel="noreferrer">
-Ver documento
+<a
+href={proveedor.catalogo_url}
+target="_blank"
+rel="noopener noreferrer"
+style={botonDocumento}
+>
+📊 Catálogo
 </a>
-</p>
 )}
+</div>
 
 <p><strong>Contacto:</strong> {proveedor.contacto}</p>
 <p><strong>RUC / RUT / Tax ID:</strong> {proveedor.ruc_rut || "No definido"}</p>
