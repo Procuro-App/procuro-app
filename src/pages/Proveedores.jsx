@@ -708,6 +708,10 @@ lineHeight: 1.4,
 </p>
 
 <p style={{ margin: "6px 0" }}>
+<strong>RUC / RUT / Tax ID:</strong> {p.ruc_rut || "No definido"}
+</p>
+
+<p style={{ margin: "6px 0" }}>
 <strong>Contacto:</strong> {p.contacto || "No definido"}
 </p>
 
