@@ -502,7 +502,9 @@ width: "100%"
 <select
 value={provincia}
 onChange={(e) => {
-setProvincia(e.target.value);
+const valor = e.target.value;
+
+setProvincia(valor);
 setCiudad("");
 setProvinciaManual("");
 setCiudadManual("");
