@@ -21,8 +21,19 @@ import MiPerfilComprador from "./pages/MiPerfilComprador";
 import EnviarCotizacion from "./pages/EnviarCotizacion";
 import Chat from "./pages/Chat";
 
+import { useEffect, useState } from "react";
+
 function App() {
+const [language, setLanguage] = useState(
+localStorage.getItem("procuro_language") || "es"
+);
+
+useEffect(() => {
+localStorage.setItem("procuro_language", language);
+}, [language]);
+
 return (
+
 <BrowserRouter>
 <div
 style={{
@@ -38,7 +49,7 @@ maxWidth: "1200px",
 margin: "0 auto",
 }}
 >
-<Navbar />
+<Navbar language={language} setLanguage={setLanguage} />
 
 <Routes>
 <Route path="/" element={<Home />} />

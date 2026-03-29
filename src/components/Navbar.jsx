@@ -5,7 +5,7 @@ import logo from "../assets/logo_procuro_orange.png";
 
 const ADMIN_EMAILS = ["soporte.procuroapp@gmail.com"];
 
-function Navbar() {
+function Navbar({ language, setLanguage }) {
 const [mostrarAdmin, setMostrarAdmin] = useState(false);
 const location = useLocation();
 
@@ -39,6 +39,22 @@ setMostrarAdmin(false);
 };
 
 const activo = (ruta) => location.pathname === ruta;
+const textos = {
+es: {
+inicio: "Inicio",
+explorar: "Explorar proveedores",
+comprador: "Soy comprador",
+proveedor: "Soy proveedor",
+admin: "Admin",
+},
+en: {
+inicio: "Home",
+explorar: "Explore suppliers",
+comprador: "I am a buyer",
+proveedor: "I am a supplier",
+admin: "Admin",
+},
+};
 
 return (
 <nav
@@ -94,6 +110,52 @@ gap: isMobile ? "14px" : "16px",
 style={{
 width: "100%",
 display: "flex",
+justifyContent: "flex-end",
+gap: "8px",
+}}
+>
+<button
+onClick={() => setLanguage("es")}
+style={{
+background: language === "es"
+? "linear-gradient(135deg, #1f3552, #2563eb)"
+: "#e5e7eb",
+color: language === "es" ? "white" : "#111827",
+border: "none",
+padding: "8px 12px",
+borderRadius: "10px",
+cursor: "pointer",
+fontWeight: "700",
+fontSize: "13px",
+}}
+>
+🇪🇸 ES
+</button>
+
+<button
+onClick={() => setLanguage("en")}
+style={{
+background: language === "en"
+? "linear-gradient(135deg, #1f3552, #2563eb)"
+: "#e5e7eb",
+color: language === "en" ? "white" : "#111827",
+border: "none",
+padding: "8px 12px",
+borderRadius: "10px",
+cursor: "pointer",
+fontWeight: "700",
+fontSize: "13px",
+}}
+>
+🇺🇸 EN
+</button>
+</div>
+
+
+<div
+style={{
+width: "100%",
+display: "flex",
 justifyContent: "center",
 paddingTop: isMobile ? "4px" : "6px",
 }}
@@ -124,28 +186,28 @@ gap: isMobile ? "10px" : "12px",
 }}
 >
 <Link to="/" style={btnStyle(isMobile, activo("/"), "inicio")}>
-Inicio
+{textos[language].inicio}
 </Link>
 
 <Link
 to="/proveedores"
 style={btnStyle(isMobile, activo("/proveedores"), "explorar")}
 >
-Explorar proveedores
+{textos[language].explorar}
 </Link>
 
 <Link
 to="/acceso-comprador"
 style={btnStyle(isMobile, activo("/acceso-comprador"), "comprador")}
 >
-Soy comprador
+{textos[language].comprador}
 </Link>
 
 <Link
 to="/acceso-proveedor"
 style={btnStyle(isMobile, activo("/acceso-proveedor"), "proveedor")}
 >
-Soy proveedor
+{textos[language].proveedor}
 </Link>
 
 {mostrarAdmin ? (
@@ -160,7 +222,7 @@ activo("/revision-proveedores"),
 gridColumn: isMobile ? "1 / -1" : "auto",
 }}
 >
-Admin
+{textos[language].admin}
 </Link>
 ) : null}
 </div>
