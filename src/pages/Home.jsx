@@ -1,3 +1,4 @@
+import { useLanguage } from "../LanguageContext";
 import { supabase } from "../lib/supabase";
 import { useEffect, useState } from "react";
 
@@ -100,7 +101,7 @@ fontWeight: "600",
 marginTop: "16px",
 boxShadow: "0 8px 16px rgba(0,0,0,0.14)",
 };
-const language = localStorage.getItem("procuro_language") || "es";
+const { language } = useLanguage();
 
 const textos = {
 es: {

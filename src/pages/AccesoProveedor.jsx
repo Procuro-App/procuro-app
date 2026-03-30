@@ -1,3 +1,4 @@
+import { useLanguage } from "../LanguageContext";
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { useNavigate } from "react-router-dom";
@@ -238,7 +239,7 @@ cursor: "pointer",
 fontWeight: "700",
 boxShadow: activo ? "0 8px 16px rgba(249,115,22,0.18)" : "none",
 });
-const language = localStorage.getItem("procuro_language") || "es";
+const { language } = useLanguage();
 
 const textos = {
 es: {

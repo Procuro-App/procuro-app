@@ -49,7 +49,7 @@ maxWidth: "1200px",
 margin: "0 auto",
 }}
 >
-<Navbar language={language} setLanguage={setLanguage} />
+<Navbar />
 
 <Routes>
 <Route path="/" element={<Home />} />
