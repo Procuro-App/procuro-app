@@ -44,7 +44,7 @@ setUsuario(data?.user || null);
 
 const registrarse = async () => {
 if (!email || !password) {
-alert("Ingresa correo y contraseña");
+alert(textos[language].alertCampos);
 return;
 }
 
@@ -119,7 +119,7 @@ return;
 }
 
 localStorage.setItem("rol", "proveedor");
-alert("Sesión iniciada correctamente");
+alert(textos[language].alertSesion);
 navigate("/panel-proveedor");
 } catch (err) {
 console.error("Error inesperado iniciando sesión proveedor:", err);
@@ -131,7 +131,7 @@ setCargando(false);
 
 const recuperarPassword = async () => {
 if (!email) {
-alert("Primero ingresa tu correo electrónico");
+alert(textos[language].alertCorreo);
 return;
 }
 
@@ -153,7 +153,7 @@ alert(`No fue posible enviar el correo de recuperación: ${error.message}`);
 return;
 }
 
-alert("Te enviamos un correo para recuperar tu contraseña.");
+alert(textos[language].alertRecuperacion);
 } catch (err) {
 console.error("Error inesperado recuperando contraseña proveedor:", err);
 alert("Ocurrió un error al solicitar la recuperación");
@@ -238,7 +238,75 @@ cursor: "pointer",
 fontWeight: "700",
 boxShadow: activo ? "0 8px 16px rgba(249,115,22,0.18)" : "none",
 });
+const language = localStorage.getItem("procuro_language") || "es";
 
+const textos = {
+es: {
+badge: "Acceso proveedor",
+titulo: "Entra para hacer visible tu oferta, responder oportunidades y cotizar con estructura.",
+subtitulo: "Desde aquí puedes acceder a tu panel, ver oportunidades, enviar cotizaciones formales y dar seguimiento a tus conversaciones dentro de PROCURO.",
+
+sesionActiva: "Sesión activa",
+acceso: "Tu acceso en PROCURO",
+correoActivo: "Correo activo",
+sesionActivaDesc: "Tu sesión ya está activa. Entra a tu panel para revisar oportunidades, enviar cotizaciones y gestionar tu actividad en la plataforma.",
+irPanel: "Ir a mi panel",
+
+login: "Iniciar sesión",
+registro: "Registrarse",
+
+email: "Correo electrónico",
+password: "Contraseña",
+
+ingresar: "Ingresar",
+ingresando: "Ingresando...",
+crearCuenta: "Crear cuenta",
+creando: "Creando...",
+
+olvidar: "Olvidé mi contraseña",
+
+textoLogin: "Entra para revisar oportunidades y responder cotizaciones desde tu panel.",
+textoRegistro: "Crea tu cuenta para empezar a mostrar tu oferta y participar en oportunidades reales dentro de PROCURO.",
+
+alertCampos: "Ingresa correo y contraseña",
+alertCorreo: "Primero ingresa tu correo electrónico",
+alertSesion: "Sesión iniciada correctamente",
+alertRecuperacion: "Te enviamos un correo para recuperar tu contraseña.",
+},
+
+en: {
+badge: "Supplier access",
+titulo: "Enter to make your offer visible, respond to opportunities, and quote in a structured way.",
+subtitulo: "From here you can access your panel, view opportunities, send formal quotations, and track your interactions within PROCURO.",
+
+sesionActiva: "Active session",
+acceso: "Your access to PROCURO",
+correoActivo: "Active email",
+sesionActivaDesc: "Your session is already active. Go to your panel to review opportunities, send quotations, and manage your activity on the platform.",
+irPanel: "Go to my panel",
+
+login: "Login",
+registro: "Sign up",
+
+email: "Email",
+password: "Password",
+
+ingresar: "Login",
+ingresando: "Logging in...",
+crearCuenta: "Create account",
+creando: "Creating...",
+
+olvidar: "Forgot my password",
+
+textoLogin: "Log in to review opportunities and respond to quotations from your panel.",
+textoRegistro: "Create your account to start showcasing your offer and participate in real business opportunities on PROCURO.",
+
+alertCampos: "Enter email and password",
+alertCorreo: "Enter your email first",
+alertSesion: "Session started successfully",
+alertRecuperacion: "We sent you an email to recover your password.",
+},
+};
 return (
 <div style={paginaStyle}>
 <div style={heroCardStyle}>
@@ -265,7 +333,7 @@ textTransform: "uppercase",
 letterSpacing: "0.08em",
 }}
 >
-Acceso proveedor
+{textos[language].badge}
 </p>
 
 <h1
@@ -277,7 +345,7 @@ lineHeight: 1.25,
 fontWeight: "700",
 }}
 >
-Entra para hacer visible tu oferta, responder oportunidades y cotizar con estructura.
+{textos[language].titulo}
 </h1>
 
 <p
@@ -289,8 +357,7 @@ fontSize: isMobile ? "14px" : "16px",
 maxWidth: "820px",
 }}
 >
-Desde aquí puedes acceder a tu panel, ver oportunidades, enviar
-cotizaciones formales y dar seguimiento a tus conversaciones dentro de PROCURO.
+{textos[language].subtitulo}
 </p>
 </div>
 
@@ -304,7 +371,7 @@ fontSize: isMobile ? "22px" : "26px",
 fontWeight: "700",
 }}
 >
-{usuario ? "Sesión activa" : "Tu acceso en PROCURO"}
+{usuario ? textos[language].sesionActiva : textos[language].acceso}
 </h2>
 
 {usuario ? (
@@ -319,7 +386,7 @@ boxShadow: "0 4px 10px rgba(0,0,0,0.04)",
 }}
 >
 <p style={{ margin: 0, color: "#6b7280", fontSize: "13px" }}>
-Correo activo
+{textos[language].correoActivo}
 </p>
 <p
 style={{
@@ -339,8 +406,7 @@ marginBottom: 0,
 lineHeight: 1.6,
 }}
 >
-Tu sesión ya está activa. Entra a tu panel para revisar oportunidades,
-enviar cotizaciones y gestionar tu actividad en la plataforma.
+{textos[language].sesionActivaDesc}
 </p>
 </div>
 
@@ -351,7 +417,7 @@ style={{
 marginTop: "16px",
 }}
 >
-Ir a mi panel
+{textos[language].irPanel}
 </button>
 </>
 ) : (
@@ -368,20 +434,20 @@ flexWrap: "wrap",
 onClick={() => setModo("login")}
 style={tabStyle(modo === "login")}
 >
-Iniciar sesión
+{textos[language].login}
 </button>
 
 <button
 onClick={() => setModo("registro")}
 style={tabStyle(modo === "registro")}
 >
-Registrarse
+{textos[language].registro}
 </button>
 </div>
 
 <input
 type="email"
-placeholder="Correo electrónico"
+placeholder={textos[language].email}
 value={email}
 onChange={(e) => setEmail(e.target.value)}
 style={inputStyle}
@@ -389,7 +455,7 @@ style={inputStyle}
 
 <input
 type="password"
-placeholder="Contraseña"
+placeholder={textos[language].password}
 value={password}
 onChange={(e) => setPassword(e.target.value)}
 style={inputStyle}
@@ -410,7 +476,7 @@ onClick={iniciarSesion}
 disabled={cargando}
 style={btnPrincipal}
 >
-{cargando ? "Ingresando..." : "Ingresar"}
+{cargando ? textos[language].ingresando : textos[language].ingresar}
 </button>
 ) : (
 <button
@@ -418,7 +484,7 @@ onClick={registrarse}
 disabled={cargando}
 style={btnPrincipal}
 >
-{cargando ? "Creando..." : "Crear cuenta"}
+{cargando ? textos[language].ingresando : textos[language].crearCuenta}
 </button>
 )}
 
@@ -427,7 +493,7 @@ onClick={recuperarPassword}
 disabled={cargando}
 style={btnSecundario}
 >
-Olvidé mi contraseña
+{textos[language].olvidar}
 </button>
 </div>
 
@@ -441,8 +507,8 @@ lineHeight: 1.6,
 }}
 >
 {modo === "login"
-? "Entra para revisar oportunidades y responder cotizaciones desde tu panel."
-: "Crea tu cuenta para empezar a mostrar tu oferta y participar en oportunidades reales dentro de PROCURO."}
+? textos[language].textoLogin
+: textos[language].textoRegistro}
 </p>
 </>
 )}
