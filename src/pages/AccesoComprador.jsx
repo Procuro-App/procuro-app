@@ -1,9 +1,11 @@
+import { useLanguage } from "../LanguageContext";
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { useNavigate } from "react-router-dom";
 
 function AccesoComprador() {
 const navigate = useNavigate();
+const { language } = useLanguage();
 
 const [modo, setModo] = useState("login");
 const [email, setEmail] = useState("");
@@ -16,6 +18,86 @@ const RECOVERY_REDIRECT_URL =
 
 const isMobile =
 typeof window !== "undefined" ? window.innerWidth <= 768 : false;
+
+const textos = {
+es: {
+alertCampos: "Ingresa correo y contraseña",
+alertLoginError: "No fue posible iniciar sesión:",
+alertRegistroError: "No fue posible crear la cuenta:",
+alertCorreoExiste: "Este correo ya está registrado. Inicia sesión.",
+alertRegistroOk:
+"Cuenta creada correctamente. Revisa tu correo para confirmarla.",
+alertRecuperacionError:
+"No fue posible enviar el correo de recuperación:",
+alertLoginOk: "Sesión iniciada correctamente",
+alertRecuperar: "Primero ingresa tu correo electrónico",
+alertRecuperarOk:
+"Te enviamos un correo para recuperar tu contraseña.",
+alertErrorGeneral: "Ocurrió un error",
+
+badge: "Acceso comprador",
+titulo: "Entra para encontrar, comparar y decidir mejor.",
+subtitulo:
+"Accede a proveedores organizados, genera requerimientos formales y compara cotizaciones con claridad.",
+sesionActiva: "Sesión activa",
+acceso: "Tu acceso en PROCURO",
+correoActivo: "Correo activo",
+irPanel: "Ir a mi panel",
+login: "Iniciar sesión",
+registro: "Registrarse",
+correo: "Correo electrónico",
+password: "Contraseña",
+ingresar: "Ingresar",
+ingresando: "Ingresando...",
+creando: "Creando...",
+crearCuenta: "Crear cuenta",
+olvidaste: "Olvidé mi contraseña",
+textoSesion:
+"Tu sesión ya está activa. Entra a tu dashboard para gestionar requerimientos, cotizaciones y comparativos.",
+textoLogin:
+"Entra para gestionar requerimientos y comparar cotizaciones desde tu panel.",
+textoRegistro:
+"Crea tu cuenta para empezar a solicitar, comparar y decidir mejor.",
+},
+en: {
+alertCampos: "Enter email and password",
+alertLoginError: "Login failed:",
+alertRegistroError: "Account creation failed:",
+alertCorreoExiste:
+"This email is already registered. Please log in.",
+alertRegistroOk:
+"Account created successfully. Check your email to confirm it.",
+alertRecuperacionError: "Could not send the recovery email:",
+alertLoginOk: "Login successful",
+alertRecuperar: "Please enter your email first",
+alertRecuperarOk: "We sent you a password recovery email.",
+alertErrorGeneral: "An error occurred",
+
+badge: "Buyer access",
+titulo: "Enter to find, compare, and decide better.",
+subtitulo:
+"Access organized suppliers, create formal requests, and compare quotes clearly.",
+sesionActiva: "Active session",
+acceso: "Your access to PROCURO",
+correoActivo: "Active email",
+irPanel: "Go to my panel",
+login: "Log in",
+registro: "Sign up",
+correo: "Email",
+password: "Password",
+ingresar: "Log in",
+ingresando: "Logging in...",
+creando: "Creating...",
+crearCuenta: "Create account",
+olvidaste: "Forgot my password",
+textoSesion:
+"Your session is active. Go to your dashboard to manage requests, quotations, and comparisons.",
+textoLogin:
+"Enter to manage requests and compare quotes from your panel.",
+textoRegistro:
+"Create your account to start requesting, comparing, and deciding better.",
+},
+};
 
 useEffect(() => {
 verificarSesion();
@@ -44,7 +126,7 @@ setUsuario(data?.user || null);
 
 const registrarse = async () => {
 if (!email || !password) {
-alert("Ingresa correo y contraseña");
+alert(textos[language].alertCampos);
 return;
 }
 
@@ -66,10 +148,10 @@ error.message?.toLowerCase().includes("already registered") ||
 error.message?.toLowerCase().includes("already been registered") ||
 error.message?.toLowerCase().includes("user already registered")
 ) {
-alert("Este correo ya está registrado. Inicia sesión.");
+alert(textos[language].alertCorreoExiste);
 setModo("login");
 } else {
-alert(`No fue posible crear la cuenta: ${error.message}`);
+alert(`${textos[language].alertRegistroError} ${error.message}`);
 }
 return;
 }
@@ -79,18 +161,16 @@ data?.user &&
 Array.isArray(data.user.identities) &&
 data.user.identities.length === 0
 ) {
-alert("Este correo ya está registrado. Inicia sesión.");
+alert(textos[language].alertCorreoExiste);
 setModo("login");
 return;
 }
 
-alert(
-"Cuenta de comprador creada correctamente. Revisa tu correo para confirmarla."
-);
+alert(textos[language].alertRegistroOk);
 setModo("login");
 } catch (err) {
 console.error("Error inesperado registrando comprador:", err);
-alert("Ocurrió un error al registrarte");
+alert(textos[language].alertErrorGeneral);
 } finally {
 setCargando(false);
 }
@@ -98,7 +178,7 @@ setCargando(false);
 
 const iniciarSesion = async () => {
 if (!email || !password) {
-alert("Ingresa correo y contraseña");
+alert(textos[language].alertCampos);
 return;
 }
 
@@ -114,16 +194,16 @@ password,
 
 if (error) {
 console.error("Error iniciando sesión comprador:", error);
-alert(`No fue posible iniciar sesión: ${error.message}`);
+alert(`${textos[language].alertLoginError} ${error.message}`);
 return;
 }
 
 localStorage.setItem("rol", "comprador");
-alert("Sesión iniciada correctamente");
+alert(textos[language].alertLoginOk);
 navigate("/panel-comprador");
 } catch (err) {
 console.error("Error inesperado iniciando sesión comprador:", err);
-alert("Ocurrió un error al iniciar sesión");
+alert(textos[language].alertErrorGeneral);
 } finally {
 setCargando(false);
 }
@@ -131,7 +211,7 @@ setCargando(false);
 
 const recuperarPassword = async () => {
 if (!email) {
-alert("Primero ingresa tu correo electrónico");
+alert(textos[language].alertRecuperar);
 return;
 }
 
@@ -149,14 +229,16 @@ redirectTo: RECOVERY_REDIRECT_URL,
 
 if (error) {
 console.error("Error enviando recuperación comprador:", error);
-alert(`No fue posible enviar el correo de recuperación: ${error.message}`);
+alert(
+`${textos[language].alertRecuperacionError} ${error.message}`
+);
 return;
 }
 
-alert("Te enviamos un correo para recuperar tu contraseña.");
+alert(textos[language].alertRecuperarOk);
 } catch (err) {
 console.error("Error inesperado recuperando contraseña comprador:", err);
-alert("Ocurrió un error al solicitar la recuperación");
+alert(textos[language].alertErrorGeneral);
 } finally {
 setCargando(false);
 }
@@ -265,7 +347,7 @@ textTransform: "uppercase",
 letterSpacing: "0.08em",
 }}
 >
-Acceso comprador
+{textos[language].badge}
 </p>
 
 <h1
@@ -277,7 +359,7 @@ lineHeight: 1.25,
 fontWeight: "700",
 }}
 >
-Entra para buscar mejor, comparar con más criterio y comprar con más orden.
+{textos[language].titulo}
 </h1>
 
 <p
@@ -289,9 +371,7 @@ fontSize: isMobile ? "14px" : "16px",
 maxWidth: "820px",
 }}
 >
-Desde aquí puedes acceder a tu panel, publicar requerimientos,
-solicitar cotizaciones y analizar proveedores dentro de una estructura
-pensada para compras.
+{textos[language].subtitulo}
 </p>
 </div>
 
@@ -305,7 +385,7 @@ fontSize: isMobile ? "22px" : "26px",
 fontWeight: "700",
 }}
 >
-{usuario ? "Sesión activa" : "Tu acceso en PROCURO"}
+{usuario ? textos[language].sesionActiva : textos[language].acceso}
 </h2>
 
 {usuario ? (
@@ -320,8 +400,9 @@ boxShadow: "0 4px 10px rgba(0,0,0,0.04)",
 }}
 >
 <p style={{ margin: 0, color: "#6b7280", fontSize: "13px" }}>
-Correo activo
+{textos[language].correoActivo}
 </p>
+
 <p
 style={{
 margin: "6px 0 0 0",
@@ -340,8 +421,7 @@ marginBottom: 0,
 lineHeight: 1.6,
 }}
 >
-Tu sesión ya está activa. Entra a tu dashboard para gestionar
-requerimientos, cotizaciones y comparativos.
+{textos[language].textoSesion}
 </p>
 </div>
 
@@ -352,7 +432,7 @@ style={{
 marginTop: "16px",
 }}
 >
-Ir a mi dashboard
+{textos[language].irPanel}
 </button>
 </>
 ) : (
@@ -369,20 +449,20 @@ flexWrap: "wrap",
 onClick={() => setModo("login")}
 style={tabStyle(modo === "login")}
 >
-Iniciar sesión
+{textos[language].login}
 </button>
 
 <button
 onClick={() => setModo("registro")}
 style={tabStyle(modo === "registro")}
 >
-Registrarse
+{textos[language].registro}
 </button>
 </div>
 
 <input
 type="email"
-placeholder="Correo electrónico"
+placeholder={textos[language].correo}
 value={email}
 onChange={(e) => setEmail(e.target.value)}
 style={inputStyle}
@@ -390,7 +470,7 @@ style={inputStyle}
 
 <input
 type="password"
-placeholder="Contraseña"
+placeholder={textos[language].password}
 value={password}
 onChange={(e) => setPassword(e.target.value)}
 style={inputStyle}
@@ -411,7 +491,9 @@ onClick={iniciarSesion}
 disabled={cargando}
 style={btnPrincipal}
 >
-{cargando ? "Ingresando..." : "Ingresar"}
+{cargando
+? textos[language].ingresando
+: textos[language].ingresar}
 </button>
 ) : (
 <button
@@ -419,7 +501,9 @@ onClick={registrarse}
 disabled={cargando}
 style={btnPrincipal}
 >
-{cargando ? "Creando..." : "Crear cuenta"}
+{cargando
+? textos[language].creando
+: textos[language].crearCuenta}
 </button>
 )}
 
@@ -428,7 +512,7 @@ onClick={recuperarPassword}
 disabled={cargando}
 style={btnSecundario}
 >
-Olvidé mi contraseña
+{textos[language].olvidaste}
 </button>
 </div>
 
@@ -442,8 +526,8 @@ lineHeight: 1.6,
 }}
 >
 {modo === "login"
-? "Entra para gestionar tus requerimientos y comparar cotizaciones."
-: "Crea tu cuenta para comenzar a trabajar tu proceso de compra dentro de PROCURO."}
+? textos[language].textoLogin
+: textos[language].textoRegistro}
 </p>
 </>
 )}
