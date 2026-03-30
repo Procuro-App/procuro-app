@@ -100,7 +100,92 @@ fontWeight: "600",
 marginTop: "16px",
 boxShadow: "0 8px 16px rgba(0,0,0,0.14)",
 };
+const language = localStorage.getItem("procuro_language") || "es";
 
+const textos = {
+es: {
+badge: "Marketplace B2B",
+titulo: "Compras más claras. Proveedores más visibles.",
+subtitulo:
+"PROCURO conecta compradores con proveedores reales, organizando la búsqueda, la solicitud formal y la comparación de ofertas dentro de un mismo entorno.",
+
+proveedores: "Proveedores",
+proveedoresDesc: "Empresas registradas en la plataforma",
+requerimientos: "Requerimientos",
+requerimientosDesc: "Solicitudes publicadas por compradores",
+cotizaciones: "Cotizaciones",
+cotizacionesDesc: "Flujo formal ya habilitado",
+
+quePuedesHacer: "¿Qué puedes hacer?",
+encontrarProveedores: "Encontrar proveedores",
+encontrarProveedoresDesc:
+"Filtra y encuentra opciones alineadas a tu necesidad real.",
+publicarRequerimientos: "Publicar requerimientos",
+publicarRequerimientosDesc:
+"Genera solicitudes con contexto, orden y trazabilidad.",
+compararCotizaciones: "Comparar cotizaciones",
+compararCotizacionesDesc:
+"Evalúa propuestas de forma simple, visual y útil para decidir.",
+
+eligeComoEntrar: "Elige cómo quieres entrar",
+soyComprador: "Soy comprador",
+soyCompradorDesc: "Encuentra y compara proveedores con criterio.",
+soyProveedor: "Soy proveedor",
+soyProveedorDesc: "Recibe oportunidades reales de negocio.",
+explorarProveedores: "Explorar proveedores",
+explorarProveedoresDesc:
+"Descubre proveedores por sector, cobertura y alcance.",
+entrar: "Entrar",
+explorar: "Explorar",
+
+soporteTitulo: "Soporte y contacto",
+soporteTexto:
+"Si necesitas ayuda, tienes alguna sugerencia o deseas solicitar la eliminación de tu cuenta, puedes escribirnos directamente.",
+soporteCanal:
+"Este canal aplica para soporte técnico, consultas generales, sugerencias y solicitud de eliminación de cuenta.",
+},
+en: {
+badge: "B2B Marketplace",
+titulo: "Clearer purchasing. More visible suppliers.",
+subtitulo:
+"PROCURO connects buyers with real suppliers, organizing search, formal requests, and quotation comparison within a single environment.",
+
+proveedores: "Suppliers",
+proveedoresDesc: "Companies registered on the platform",
+requerimientos: "Requests",
+requerimientosDesc: "Requests published by buyers",
+cotizaciones: "Quotations",
+cotizacionesDesc: "Formal workflow already enabled",
+
+quePuedesHacer: "What can you do?",
+encontrarProveedores: "Find suppliers",
+encontrarProveedoresDesc:
+"Filter and find options aligned with your real need.",
+publicarRequerimientos: "Publish requests",
+publicarRequerimientosDesc:
+"Create requests with context, order, and traceability.",
+compararCotizaciones: "Compare quotations",
+compararCotizacionesDesc:
+"Evaluate proposals in a simple, visual, and useful way to decide.",
+
+eligeComoEntrar: "Choose how you want to enter",
+soyComprador: "I am a buyer",
+soyCompradorDesc: "Find and compare suppliers with criteria.",
+soyProveedor: "I am a supplier",
+soyProveedorDesc: "Receive real business opportunities.",
+explorarProveedores: "Explore suppliers",
+explorarProveedoresDesc:
+"Discover suppliers by sector, coverage, and scope.",
+entrar: "Enter",
+explorar: "Explore",
+
+soporteTitulo: "Support and contact",
+soporteTexto:
+"If you need help, have suggestions, or want to request account deletion, you can write to us directly.",
+soporteCanal:
+"This channel applies to technical support, general inquiries, suggestions, and account deletion requests.",
+},
+};
 return (
 <div
 style={{
@@ -120,7 +205,7 @@ letterSpacing: "1px",
 textTransform: "uppercase",
 }}
 >
-Marketplace B2B
+{textos[language].badge}
 </p>
 
 <h1
@@ -134,7 +219,7 @@ fontWeight: "600",
 maxWidth: "800px",
 }}
 >
-Compras más claras. Proveedores más visibles.
+{textos[language].titulo}
 </h1>
 
 <p
@@ -146,9 +231,7 @@ maxWidth: "800px",
 marginBottom: 0,
 }}
 >
-PROCURO conecta compradores con proveedores reales, organizando la
-búsqueda, la solicitud formal y la comparación de ofertas dentro de un
-mismo entorno.
+{textos[language].subtitulo}
 </p>
 </div>
 
@@ -164,37 +247,36 @@ marginBottom: "28px",
 >
 <div style={quickCardStyle}>
 <p style={{ fontSize: "12px", color: "#6b7280", margin: 0 }}>
-Proveedores
+{textos[language].proveedores}
 </p>
 <h2 style={{ margin: "6px 0", color: "#111827" }}>
 {totalProveedores}
 </h2>
 <p style={{ margin: 0, color: "#6b7280", fontSize: "14px" }}>
-Empresas registradas en la plataforma
+{textos[language].proveedoresDesc}
 </p>
 </div>
-
 <div style={quickCardStyle}>
 <p style={{ fontSize: "12px", color: "#6b7280", margin: 0 }}>
-Requerimientos
+{textos[language].requerimientos}
 </p>
 <h2 style={{ margin: "6px 0", color: "#111827" }}>
 {totalRequerimientos}
 </h2>
 <p style={{ margin: 0, color: "#6b7280", fontSize: "14px" }}>
-Solicitudes publicadas por compradores
+{textos[language].requerimientosDesc}
 </p>
 </div>
 
 <div style={quickCardStyle}>
 <p style={{ fontSize: "12px", color: "#6b7280", margin: 0 }}>
-Cotizaciones
+{textos[language].cotizaciones}
 </p>
 <h2 style={{ margin: "6px 0", color: "#111827" }}>
 {totalCotizaciones}
 </h2>
 <p style={{ margin: 0, color: "#6b7280", fontSize: "14px" }}>
-Flujo formal ya habilitado
+{textos[language].cotizacionesDesc}
 </p>
 </div>
 </div>
@@ -208,9 +290,8 @@ color: "#1f3552",
 marginTop: 0,
 }}
 >
-¿Qué puedes hacer?
+{textos[language].quePuedesHacer}
 </h2>
-
 <div
 style={{
 display: "grid",
@@ -229,7 +310,7 @@ color: "#1f3552",
 fontWeight: "600",
 }}
 >
-Encontrar proveedores
+{textos[language].encontrarProveedores}
 </h3>
 <p
 style={{
@@ -239,7 +320,7 @@ color: "#6b7280",
 lineHeight: 1.6,
 }}
 >
-Filtra y encuentra opciones alineadas a tu necesidad real.
+{textos[language].encontrarProveedoresDesc}
 </p>
 </div>
 
@@ -252,7 +333,7 @@ color: "#1f3552",
 fontWeight: "600",
 }}
 >
-Publicar requerimientos
+{textos[language].publicarRequerimientos}
 </h3>
 <p
 style={{
@@ -262,7 +343,7 @@ color: "#6b7280",
 lineHeight: 1.6,
 }}
 >
-Genera solicitudes con contexto, orden y trazabilidad.
+{textos[language].publicarRequerimientosDesc}
 </p>
 </div>
 
@@ -275,7 +356,7 @@ color: "#1f3552",
 fontWeight: "600",
 }}
 >
-Comparar cotizaciones
+{textos[language].compararCotizaciones}
 </h3>
 <p
 style={{
@@ -285,7 +366,7 @@ color: "#6b7280",
 lineHeight: 1.6,
 }}
 >
-Evalúa propuestas de forma simple, visual y útil para decidir.
+{textos[language].compararCotizacionesDesc}
 </p>
 </div>
 </div>
@@ -300,7 +381,7 @@ color: "#1f3552",
 marginTop: 0,
 }}
 >
-Elige cómo quieres entrar
+{textos[language].eligeComoEntrar}
 </h2>
 
 <div
@@ -322,7 +403,7 @@ marginBottom: "8px",
 color: "#1f3552",
 }}
 >
-Soy comprador
+{textos[language].soyComprador}
 </h3>
 <p
 style={{
@@ -332,7 +413,7 @@ lineHeight: 1.6,
 margin: 0,
 }}
 >
-Encuentra y compara proveedores con criterio.
+{textos[language].soyCompradorDesc}
 </p>
 </div>
 
@@ -357,7 +438,7 @@ marginBottom: "8px",
 color: "#1f3552",
 }}
 >
-Soy proveedor
+{textos[language].soyProveedor}
 </h3>
 <p
 style={{
@@ -367,7 +448,7 @@ lineHeight: 1.6,
 margin: 0,
 }}
 >
-Recibe oportunidades reales de negocio.
+{textos[language].soyProveedorDesc}
 </p>
 </div>
 
@@ -378,7 +459,7 @@ style={{
 background: "#f97316",
 }}
 >
-Entrar
+{textos[language].entrar}
 </a>
 </div>
 
@@ -392,7 +473,7 @@ marginBottom: "8px",
 color: "#1f3552",
 }}
 >
-Explorar proveedores
+{textos[language].explorarProveedores}
 </h3>
 <p
 style={{
@@ -402,7 +483,7 @@ lineHeight: 1.6,
 margin: 0,
 }}
 >
-Descubre proveedores por sector, cobertura y alcance.
+{textos[language].explorarProveedoresDesc}
 </p>
 </div>
 
@@ -413,7 +494,7 @@ style={{
 background: "#2563eb",
 }}
 >
-Explorar
+{textos[language].explorar}
 </a>
 </div>
 </div>
@@ -429,7 +510,7 @@ fontSize: isMobile ? "20px" : "22px",
 fontWeight: "600",
 }}
 >
-Soporte y contacto
+{textos[language].soporteTitulo}
 </h2>
 
 <p
@@ -440,8 +521,7 @@ fontSize: isMobile ? "14px" : "16px",
 lineHeight: 1.7,
 }}
 >
-Si necesitas ayuda, tienes alguna sugerencia o deseas solicitar la
-eliminación de tu cuenta, puedes escribirnos directamente.
+{textos[language].soporteTexto}
 </p>
 
 <a
@@ -466,8 +546,7 @@ lineHeight: 1.6,
 marginBottom: 0,
 }}
 >
-Este canal aplica para soporte técnico, consultas generales,
-sugerencias y solicitud de eliminación de cuenta.
+{textos[language].soporteCanal}
 </p>
 </div>
 </div>
