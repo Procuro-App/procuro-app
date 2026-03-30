@@ -1,3 +1,4 @@
+import { useLanguage } from "../LanguageContext";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { supabase } from "../lib/supabase";
@@ -5,7 +6,9 @@ import logo from "../assets/logo_procuro_orange.png";
 
 const ADMIN_EMAILS = ["soporte.procuroapp@gmail.com"];
 
-function Navbar({ language, setLanguage }) {
+function Navbar() {
+const { language, setLanguage } = useLanguage();
+
 const [mostrarAdmin, setMostrarAdmin] = useState(false);
 const location = useLocation();
 

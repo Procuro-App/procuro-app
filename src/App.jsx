@@ -1,3 +1,4 @@
+import { LanguageContext } from "./LanguageContext";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar";
 
@@ -31,9 +32,8 @@ localStorage.getItem("procuro_language") || "es"
 useEffect(() => {
 localStorage.setItem("procuro_language", language);
 }, [language]);
-
 return (
-
+<LanguageContext.Provider value={{ language, setLanguage }}>
 <BrowserRouter>
 <div
 style={{
@@ -94,6 +94,7 @@ element={<RecuperarPasswordComprador />}
 </div>
 </div>
 </BrowserRouter>
+</LanguageContext.Provider>
 );
 }
 
