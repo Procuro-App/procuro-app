@@ -281,14 +281,18 @@ alert(`Error enviando solicitud: ${errorMensaje.message}`);
 return;
 }
 
-const { error: errorEstadoConv } = await supabase
+const { data: convActualizada, error: errorEstadoConv } = await supabase
 .from("conversaciones")
 .update({
 no_leido_proveedor: true,
 no_leido_comprador: false,
 ultimo_mensaje_at: new Date().toISOString(),
 })
-.eq("id", conversacion.id);
+.eq("id", conversacion.id)
+.select();
+
+console.log("Conversacion actualizada:", convActualizada);
+alert("Se ejecutó el update de conversación");
 
 if (errorEstadoConv) {
 alert(`Error actualizando notificación: ${errorEstadoConv.message}`);
