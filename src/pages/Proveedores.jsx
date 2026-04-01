@@ -229,6 +229,9 @@ proveedor_id: proveedor.id || null,
 requerimiento_id: requerimientoId,
 requerimiento_nombre:
 reqData.nombre_requerimiento || requerimientoNombre,
+no_leido_proveedor: false,
+no_leido_comprador: false,
+ultimo_mensaje_at: null,
 };
 
 const { data: creada, error: errorCreacion } = await supabase
@@ -303,7 +306,24 @@ throw new Error(
 errorMensajeInicial.message || "Error creando mensaje inicial"
 );
 }
+
+const { error: errorUpdateConversacion } = await supabase
+.from("conversaciones")
+.update({
+no_leido_proveedor: true,
+no_leido_comprador: false,
+ultimo_mensaje_at: new Date().toISOString(),
+})
+.eq("id", conversacionExacta.id);
+
+if (errorUpdateConversacion) {
+throw new Error(
+errorUpdateConversacion.message ||
+"Error actualizando notificación de conversación"
+);
 }
+}
+
 
 const params = new URLSearchParams();
 params.set("conversacion_id", conversacionExacta.id);
