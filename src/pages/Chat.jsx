@@ -147,13 +147,10 @@ mismoId(c.id, conversacionIdParam)
 
 
 if (exacta) {
-
 setConversacionActiva(exacta);
-
 await cargarMensajes(exacta.id);
-
+await marcarConversacionComoLeida(exacta);
 return;
-
 }
 
 }
@@ -161,18 +158,14 @@ return;
 
 
 if (lista.length > 0) {
-
 setConversacionActiva(lista[0]);
-
 await cargarMensajes(lista[0].id);
-
+await marcarConversacionComoLeida(lista[0]);
 } else {
-
 setConversacionActiva(null);
-
 setMensajes([]);
-
 }
+
 
 } catch (err) {
 
@@ -366,22 +359,47 @@ setMensajes(data || []);
 
 };
 
+const marcarConversacionComoLeida = async (conv) => {
+if (!conv?.id || !rol) return;
+
+const updatePayload =
+rol === "proveedor"
+? { no_leido_proveedor: false }
+: { no_leido_comprador: false };
+
+const { error } = await supabase
+.from("conversaciones")
+.update(updatePayload)
+.eq("id", conv.id);
+
+if (error) {
+console.error("Error marcando conversación como leída:", error);
+}
+};
 
 
 const seleccionarConversacion = async (id) => {
-
 const conv = conversaciones.find((c) => mismoId(c.id, id));
-
 if (!conv) return;
 
-
-
 setConversacionActiva(conv);
-
 await cargarMensajes(conv.id);
+await marcarConversacionComoLeida(conv);
 
+setConversaciones((prev) =>
+prev.map((item) =>
+mismoId(item.id, conv.id)
+? {
+...item,
+no_leido_proveedor:
+rol === "proveedor" ? false : item.no_leido_proveedor,
+no_leido_comprador:
+rol === "comprador" ? false : item.no_leido_comprador,
+}
+: item
+)
+);
 };
-
 
 
 const subirArchivoChat = async (archivo, conversacionId) => {
@@ -509,22 +527,47 @@ archivo_nombre: archivoPayload.archivo_nombre,
 
 
 if (error) {
-
 console.error("Error enviando mensaje:", error);
-
 alert("No se pudo enviar el mensaje.");
-
 return;
-
 }
 
+const updateConversacion =
+rol === "proveedor"
+? {
+no_leido_proveedor: false,
+no_leido_comprador: true,
+ultimo_mensaje_at: new Date().toISOString(),
+}
+: {
+no_leido_proveedor: true,
+no_leido_comprador: false,
+ultimo_mensaje_at: new Date().toISOString(),
+};
 
+const { error: errorConv } = await supabase
+.from("conversaciones")
+.update(updateConversacion)
+.eq("id", conversacionActiva.id);
+
+if (errorConv) {
+console.error("Error actualizando estado de conversación:", errorConv);
+}
 
 setNuevoMensaje("");
-
 setArchivoAdjunto(null);
-
 await cargarMensajes(conversacionActiva.id);
+
+setConversaciones((prev) =>
+prev.map((item) =>
+mismoId(item.id, conversacionActiva.id)
+? {
+...item,
+...updateConversacion,
+}
+: item
+)
+);
 
 } catch (err) {
 
@@ -840,19 +883,39 @@ cursor: "pointer",
 
 >
 
+<div
+style={{
+display: "flex",
+justifyContent: "space-between",
+alignItems: "center",
+gap: "8px",
+}}
+>
 <strong style={{ display: "block" }}>
-
 {rol === "proveedor"
-
 ? conv.comprador_email || "Comprador"
-
 : conv.proveedor_nombre ||
-
 conv.proveedor_email ||
-
 "Proveedor"}
-
 </strong>
+
+{((rol === "proveedor" && conv.no_leido_proveedor) ||
+(rol === "comprador" && conv.no_leido_comprador)) && (
+<span
+style={{
+backgroundColor: "#dc2626",
+color: "white",
+borderRadius: "999px",
+fontSize: "11px",
+fontWeight: "bold",
+padding: "3px 8px",
+whiteSpace: "nowrap",
+}}
+>
+Nuevo
+</span>
+)}
+</div>
 
 
 
