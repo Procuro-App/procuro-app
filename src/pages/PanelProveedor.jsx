@@ -7,6 +7,7 @@ const navigate = useNavigate();
 
 const [usuario, setUsuario] = useState(null);
 const [nombreProveedor, setNombreProveedor] = useState("");
+const [noLeidas, setNoLeidas] = useState(0);
 
 const isMobile =
 typeof window !== "undefined" ? window.innerWidth <= 768 : false;
@@ -26,7 +27,13 @@ return;
 const user = data?.user || null;
 setUsuario(user);
 
-if (!user?.email) return;
+if (!user?.email) {
+setNoLeidas(0);
+return;
+}
+
+await cargarNoLeidas(user.email);
+
 
 const { data: proveedorData, error: proveedorError } = await supabase
 .from("proveedores")
@@ -42,6 +49,27 @@ return;
 setNombreProveedor(
 proveedorData?.nombre || proveedorData?.contacto || user.email
 );
+};
+
+const cargarNoLeidas = async (emailUsuario) => {
+if (!emailUsuario) {
+setNoLeidas(0);
+return;
+}
+
+const { count, error } = await supabase
+.from("conversaciones")
+.select("*", { count: "exact", head: true })
+.eq("proveedor_email", emailUsuario)
+.eq("no_leido_proveedor", true);
+
+if (error) {
+console.error("Error cargando conversaciones no leídas:", error);
+setNoLeidas(0);
+return;
+}
+
+setNoLeidas(count || 0);
 };
 
 const cerrarSesion = async () => {
@@ -99,6 +127,21 @@ color: "#9a3412",
 fontSize: "12px",
 fontWeight: "700",
 marginBottom: "12px",
+};
+
+const contadorBadge = {
+display: "inline-flex",
+alignItems: "center",
+justifyContent: "center",
+minWidth: "26px",
+height: "26px",
+padding: "0 8px",
+borderRadius: "999px",
+backgroundColor: "#dc2626",
+color: "white",
+fontSize: "12px",
+fontWeight: "800",
+boxShadow: "0 6px 14px rgba(220,38,38,0.22)",
 };
 
 const tituloCard = {
@@ -266,16 +309,34 @@ Ver mis cotizaciones
 
 <div style={accionCard}>
 <div>
+<div
+style={{
+display: "flex",
+justifyContent: "space-between",
+alignItems: "center",
+gap: "10px",
+marginBottom: "12px",
+}}
+>
 <span style={miniBadge}>Conversación</span>
-<h3 style={tituloCard}>Conversaciones</h3>
-<p style={textoCard}>
-Responde chats por requerimiento y mantén cada conversación con su
-contexto, archivos y trazabilidad.
-</p>
+
+{noLeidas > 0 && (
+<span style={contadorBadge}>
+{noLeidas > 9 ? "9+" : noLeidas}
+</span>
+)}
 </div>
 
+<h3 style={tituloCard}>Conversaciones</h3>
+<p style={textoCard}>
+Gestiona chats abiertos con proveedores por cada requerimiento y
+mantén trazabilidad.
+</p>
+</div>
 <button onClick={() => navigate("/chat")} style={botonSecundario}>
-Ver conversaciones
+{noLeidas > 0
+? `Ver mis conversaciones (${noLeidas > 9 ? "9+" : noLeidas})`
+: "Ver mis conversaciones"}
 </button>
 </div>
 
