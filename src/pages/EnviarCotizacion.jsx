@@ -211,6 +211,22 @@ return;
 
 let conversacion = conversacionExistente;
 
+if (conversacionExistente) {
+const { error: errorUpdateConv } = await supabase
+.from("conversaciones")
+.update({
+no_leido_proveedor: true,
+no_leido_comprador: false,
+ultimo_mensaje_at: new Date().toISOString(),
+})
+.eq("id", conversacionExistente.id);
+
+if (errorUpdateConv) {
+alert(`Error actualizando conversación: ${errorUpdateConv.message}`);
+return;
+}
+}
+
 if (!conversacion) {
 const { data: nueva, error: errorCreacion } = await supabase
 .from("conversaciones")
@@ -222,6 +238,9 @@ proveedor_nombre: nombreDestino,
 proveedor_id: proveedorId || proveedorData?.id || null,
 requerimiento_id: id,
 requerimiento_nombre: requerimiento.nombre_requerimiento,
+no_leido_proveedor: true,
+no_leido_comprador: false,
+ultimo_mensaje_at: new Date().toISOString(),
 },
 ])
 .select()
@@ -259,6 +278,20 @@ archivo_nombre: requerimiento.archivo_nombre || null,
 
 if (errorMensaje) {
 alert(`Error enviando solicitud: ${errorMensaje.message}`);
+return;
+}
+
+const { error: errorEstadoConv } = await supabase
+.from("conversaciones")
+.update({
+no_leido_proveedor: true,
+no_leido_comprador: false,
+ultimo_mensaje_at: new Date().toISOString(),
+})
+.eq("id", conversacion.id);
+
+if (errorEstadoConv) {
+alert(`Error actualizando notificación: ${errorEstadoConv.message}`);
 return;
 }
 
