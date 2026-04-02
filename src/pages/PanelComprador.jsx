@@ -7,6 +7,7 @@ const navigate = useNavigate();
 
 const [usuario, setUsuario] = useState(null);
 const [nombreComprador, setNombreComprador] = useState("");
+const [noLeidas, setNoLeidas] = useState(0);
 
 const isMobile =
 typeof window !== "undefined" ? window.innerWidth <= 768 : false;
@@ -14,6 +15,51 @@ typeof window !== "undefined" ? window.innerWidth <= 768 : false;
 useEffect(() => {
 cargarComprador();
 }, []);
+
+useEffect(() => {
+if (!usuario?.email) return;
+
+const canal = supabase
+.channel("conversaciones-realtime-comprador")
+.on(
+"postgres_changes",
+{
+event: "*",
+schema: "public",
+table: "conversaciones",
+},
+() => {
+cargarNoLeidas(usuario.email);
+}
+)
+.subscribe();
+
+return () => {
+supabase.removeChannel(canal);
+};
+}, [usuario]);
+
+
+const cargarNoLeidas = async (emailUsuario) => {
+if (!emailUsuario) {
+setNoLeidas(0);
+return;
+}
+
+const { count, error } = await supabase
+.from("conversaciones")
+.select("*", { count: "exact", head: true })
+.eq("comprador_email", emailUsuario)
+.eq("no_leido_comprador", true);
+
+if (error) {
+console.error("Error cargando conversaciones no leídas:", error);
+setNoLeidas(0);
+return;
+}
+
+setNoLeidas(count || 0);
+};
 
 const cargarComprador = async () => {
 const { data, error } = await supabase.auth.getUser();
@@ -26,7 +72,12 @@ return;
 const user = data?.user || null;
 setUsuario(user);
 
-if (!user?.email) return;
+if (!user?.email) {
+setNoLeidas(0);
+return;
+}
+
+await cargarNoLeidas(user.email);
 
 const { data: compradoresData, error: compradorError } = await supabase
 .from("compradores")
@@ -98,6 +149,21 @@ color: "#1d4ed8",
 fontSize: "12px",
 fontWeight: "700",
 marginBottom: "12px",
+};
+
+const contadorBadge = {
+display: "inline-flex",
+alignItems: "center",
+justifyContent: "center",
+minWidth: "26px",
+height: "26px",
+padding: "0 8px",
+borderRadius: "999px",
+backgroundColor: "#dc2626",
+color: "white",
+fontSize: "12px",
+fontWeight: "800",
+boxShadow: "0 6px 14px rgba(220,38,38,0.22)",
 };
 
 const tituloCard = {
@@ -294,7 +360,24 @@ Ir a mi perfil
 
 <div style={accionCard}>
 <div>
+<div
+style={{
+display: "flex",
+justifyContent: "space-between",
+alignItems: "center",
+gap: "10px",
+marginBottom: "12px",
+}}
+>
 <span style={miniBadge}>Conversación</span>
+
+{noLeidas > 0 && (
+<span style={contadorBadge}>
+{noLeidas > 9 ? "9+" : noLeidas}
+</span>
+)}
+</div>
+
 <h3 style={tituloCard}>Conversaciones</h3>
 <p style={textoCard}>
 Gestiona chats abiertos con proveedores por cada requerimiento y
@@ -302,7 +385,9 @@ mantén trazabilidad.
 </p>
 </div>
 <button onClick={() => navigate("/chat")} style={botonSecundario}>
-Ver mis conversaciones
+{noLeidas > 0
+? `Ver mis conversaciones (${noLeidas > 9 ? "9+" : noLeidas})`
+: "Ver mis conversaciones"}
 </button>
 </div>
 
