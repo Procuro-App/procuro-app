@@ -19,6 +19,8 @@ cargarComprador();
 console.log("usuario actual:", usuario);
 
 useEffect(() => {
+console.log("usuario realtime comprador:", usuario);
+
 if (!usuario?.email) return;
 
 console.log("🟢 Suscribiendo realtime comprador:", usuario.email);
@@ -45,7 +47,7 @@ return () => {
 console.log("🔴 Cerrando canal comprador");
 supabase.removeChannel(canal);
 };
-}, [usuario?.email]);
+}, [usuario]);
 
 
 const cargarNoLeidas = async (emailUsuario) => {
