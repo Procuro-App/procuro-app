@@ -17,48 +17,33 @@ cargarProveedor();
 }, []);
 
 useEffect(() => {
+if (!usuario?.email) return;
 
-    if (!usuario?.email) return;
+console.log("🟢 Suscribiendo realtime proveedor:", usuario.email);
 
+const canal = supabase
+.channel(`realtime-proveedor-${usuario.email}`)
+.on(
+"postgres_changes",
+{
+event: "*",
+schema: "public",
+table: "conversaciones",
+},
+(payload) => {
+console.log("🔥 Cambio detectado proveedor:", payload);
+cargarNoLeidas(usuario.email);
+}
+)
+.subscribe((status) => {
+console.log("📡 Estado realtime proveedor:", status);
+});
 
-
-    const canal = supabase
-
-      .channel("conversaciones-realtime")
-
-      .on(
-
-        "postgres_changes",
-
-        {
-
-          event: "*",
-
-          schema: "public",
-
-          table: "conversaciones",
-
-        },
-
-        () => {
-
-          cargarNoLeidas(usuario.email);
-
-        }
-
-      )
-
-      .subscribe();
-
-
-
-    return () => {
-
-      supabase.removeChannel(canal);
-
-    };
-
-  }, [usuario]);
+return () => {
+console.log("🔴 Cerrando canal proveedor");
+supabase.removeChannel(canal);
+};
+}, [usuario?.email]);
 
 const cargarProveedor = async () => {
 const { data, error } = await supabase.auth.getUser();

@@ -19,8 +19,10 @@ cargarComprador();
 useEffect(() => {
 if (!usuario?.email) return;
 
+console.log("🟢 Suscribiendo realtime comprador:", usuario.email);
+
 const canal = supabase
-.channel("conversaciones-realtime-comprador")
+.channel(`realtime-comprador-${usuario.email}`)
 .on(
 "postgres_changes",
 {
@@ -28,16 +30,20 @@ event: "*",
 schema: "public",
 table: "conversaciones",
 },
-() => {
+(payload) => {
+console.log("🔥 Cambio detectado comprador:", payload);
 cargarNoLeidas(usuario.email);
 }
 )
-.subscribe();
+.subscribe((status) => {
+console.log("📡 Estado realtime comprador:", status);
+});
 
 return () => {
+console.log("🔴 Cerrando canal comprador");
 supabase.removeChannel(canal);
 };
-}, [usuario]);
+}, [usuario?.email]);
 
 
 const cargarNoLeidas = async (emailUsuario) => {
