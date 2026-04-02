@@ -321,6 +321,22 @@ return [];
 
 const cargarMensajes = async (conversacionId) => {
 
+    if (usuario?.email && conversacionId) {
+if (rol === "proveedor") {
+await supabase
+.from("conversaciones")
+.update({ no_leido_proveedor: false })
+.eq("id", conversacionId);
+}
+
+if (rol === "comprador") {
+await supabase
+.from("conversaciones")
+.update({ no_leido_comprador: false })
+.eq("id", conversacionId);
+}
+}
+
 if (!conversacionId) {
 
 setMensajes([]);
