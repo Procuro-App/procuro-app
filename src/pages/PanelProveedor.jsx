@@ -16,6 +16,8 @@ useEffect(() => {
 cargarProveedor();
 }, []);
 
+console.log("usuario actual:", usuario);
+
 useEffect(() => {
 if (!usuario?.email) return;
 
