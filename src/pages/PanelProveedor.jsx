@@ -16,6 +16,50 @@ useEffect(() => {
 cargarProveedor();
 }, []);
 
+useEffect(() => {
+
+    if (!usuario?.email) return;
+
+
+
+    const canal = supabase
+
+      .channel("conversaciones-realtime")
+
+      .on(
+
+        "postgres_changes",
+
+        {
+
+          event: "*",
+
+          schema: "public",
+
+          table: "conversaciones",
+
+        },
+
+        () => {
+
+          cargarNoLeidas(usuario.email);
+
+        }
+
+      )
+
+      .subscribe();
+
+
+
+    return () => {
+
+      supabase.removeChannel(canal);
+
+    };
+
+  }, [usuario]);
+
 const cargarProveedor = async () => {
 const { data, error } = await supabase.auth.getUser();
 
